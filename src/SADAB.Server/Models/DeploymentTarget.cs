@@ -10,4 +10,9 @@ public class DeploymentTarget
     // Navigation properties
     public Deployment Deployment { get; set; } = null!;
     public Agent Agent { get; set; } = null!;
+
+    public override string ToString()
+    {
+        return $"Id={Id}, DeploymentId={DeploymentId}, AgentId={AgentId}, AddedAt={AddedAt:yyyy-MM-dd HH:mm:ss}";
+    }
 }

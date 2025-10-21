@@ -21,4 +21,14 @@ public class CommandExecution
 
     // Navigation properties
     public Agent Agent { get; set; } = null!;
+
+    public override string ToString()
+    {
+        return $"Id={Id}, AgentId={AgentId}, Command={Command}, Arguments={Arguments ?? "null"}, " +
+               $"RunAsAdmin={RunAsAdmin}, TimeoutMinutes={TimeoutMinutes}, Status={Status}, " +
+               $"RequestedAt={RequestedAt:yyyy-MM-dd HH:mm:ss}, RequestedBy={RequestedBy ?? "null"}, " +
+               $"StartedAt={StartedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}, " +
+               $"CompletedAt={CompletedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}, " +
+               $"ExitCode={ExitCode?.ToString() ?? "null"}";
+    }
 }
