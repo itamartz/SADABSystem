@@ -13,6 +13,13 @@ public class CreateDeploymentRequest
     public List<Guid>? TargetAgentIds { get; set; }
     public bool RunAsAdmin { get; set; } = true;
     public int TimeoutMinutes { get; set; } = 30;
+
+    public override string ToString()
+    {
+        return $"Name={Name}, Description={Description ?? "null"}, Type={Type}, PackageFolderName={PackageFolderName}, " +
+               $"ExecutablePath={ExecutablePath ?? "null"}, Arguments={Arguments ?? "null"}, " +
+               $"TargetAgentIds={TargetAgentIds?.Count ?? 0} agents, RunAsAdmin={RunAsAdmin}, TimeoutMinutes={TimeoutMinutes}";
+    }
 }
 
 public class DeploymentDto
@@ -28,6 +35,14 @@ public class DeploymentDto
     public int TargetAgentCount { get; set; }
     public int SuccessCount { get; set; }
     public int FailedCount { get; set; }
+
+    public override string ToString()
+    {
+        return $"Id={Id}, Name={Name}, Description={Description ?? "null"}, Type={Type}, " +
+               $"PackageFolderName={PackageFolderName}, Status={Status}, CreatedAt={CreatedAt:yyyy-MM-dd HH:mm:ss}, " +
+               $"CreatedBy={CreatedBy ?? "null"}, TargetAgentCount={TargetAgentCount}, " +
+               $"SuccessCount={SuccessCount}, FailedCount={FailedCount}";
+    }
 }
 
 public class DeploymentResultDto
@@ -42,6 +57,15 @@ public class DeploymentResultDto
     public int? ExitCode { get; set; }
     public string? Output { get; set; }
     public string? ErrorMessage { get; set; }
+
+    public override string ToString()
+    {
+        return $"Id={Id}, DeploymentId={DeploymentId}, AgentId={AgentId}, AgentName={AgentName ?? "null"}, " +
+               $"Status={Status}, StartedAt={StartedAt:yyyy-MM-dd HH:mm:ss}, " +
+               $"CompletedAt={CompletedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}, ExitCode={ExitCode?.ToString() ?? "null"}, " +
+               $"Output={(Output != null ? $"\"{Output.Substring(0, Math.Min(50, Output.Length))}...\"" : "null")}, " +
+               $"ErrorMessage={ErrorMessage ?? "null"}";
+    }
 }
 
 public class DeploymentTaskDto
@@ -54,4 +78,11 @@ public class DeploymentTaskDto
     public string? Arguments { get; set; }
     public bool RunAsAdmin { get; set; }
     public int TimeoutMinutes { get; set; }
+
+    public override string ToString()
+    {
+        return $"DeploymentId={DeploymentId}, Name={Name}, Type={Type}, Files={Files.Count} files, " +
+               $"ExecutablePath={ExecutablePath ?? "null"}, Arguments={Arguments ?? "null"}, " +
+               $"RunAsAdmin={RunAsAdmin}, TimeoutMinutes={TimeoutMinutes}";
+    }
 }

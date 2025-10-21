@@ -8,6 +8,13 @@ public class InventoryDataDto
     public Dictionary<string, string> EnvironmentVariables { get; set; } = new();
     public List<string> RunningServices { get; set; } = new();
     public DateTime CollectedAt { get; set; }
+
+    public override string ToString()
+    {
+        return $"AgentId={AgentId}, HardwareInfo={HardwareInfo.Count} items, " +
+               $"InstalledSoftware={InstalledSoftware.Count} items, EnvironmentVariables={EnvironmentVariables.Count} items, " +
+               $"RunningServices={RunningServices.Count} items, CollectedAt={CollectedAt:yyyy-MM-dd HH:mm:ss}";
+    }
 }
 
 public class InstalledSoftwareDto
@@ -16,6 +23,12 @@ public class InstalledSoftwareDto
     public string? Version { get; set; }
     public string? Publisher { get; set; }
     public DateTime? InstallDate { get; set; }
+
+    public override string ToString()
+    {
+        return $"Name={Name}, Version={Version ?? "null"}, Publisher={Publisher ?? "null"}, " +
+               $"InstallDate={InstallDate?.ToString("yyyy-MM-dd") ?? "null"}";
+    }
 }
 
 public class HardwareInfoDto
@@ -27,6 +40,13 @@ public class HardwareInfoDto
     public string? BiosVersion { get; set; }
     public string? Manufacturer { get; set; }
     public string? Model { get; set; }
+
+    public override string ToString()
+    {
+        return $"Processor={Processor ?? "null"}, TotalMemoryMB={TotalMemoryMB?.ToString() ?? "null"}, " +
+               $"FreeMemoryMB={FreeMemoryMB?.ToString() ?? "null"}, Disks={Disks.Count} disks, " +
+               $"BiosVersion={BiosVersion ?? "null"}, Manufacturer={Manufacturer ?? "null"}, Model={Model ?? "null"}";
+    }
 }
 
 public class DiskInfoDto
@@ -35,4 +55,10 @@ public class DiskInfoDto
     public long? TotalSizeGB { get; set; }
     public long? FreeSizeGB { get; set; }
     public string? FileSystem { get; set; }
+
+    public override string ToString()
+    {
+        return $"Name={Name}, TotalSizeGB={TotalSizeGB?.ToString() ?? "null"}, " +
+               $"FreeSizeGB={FreeSizeGB?.ToString() ?? "null"}, FileSystem={FileSystem ?? "null"}";
+    }
 }
