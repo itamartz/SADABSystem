@@ -15,11 +15,13 @@ namespace SADAB.Server.Controllers;
 public class CommandsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<CommandsController> _logger;
 
-    public CommandsController(ApplicationDbContext context, ILogger<CommandsController> logger)
+    public CommandsController(ApplicationDbContext context, IConfiguration configuration, ILogger<CommandsController> logger)
     {
         _context = context;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -33,7 +35,7 @@ public class CommandsController : ControllerBase
 
             if (request.TargetAgentIds == null || !request.TargetAgentIds.Any())
             {
-                return BadRequest(new { message = "No target agents specified" });
+                return BadRequest(new { message = _configuration["Messages:NoTargetAgents"] ?? "No target agents specified" });
             }
 
             foreach (var agentId in request.TargetAgentIds)
@@ -75,7 +77,7 @@ public class CommandsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error executing command");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -109,7 +111,7 @@ public class CommandsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving commands");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -148,7 +150,7 @@ public class CommandsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving command {CommandId}", id);
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -195,7 +197,7 @@ public class CommandsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving pending commands");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -232,7 +234,7 @@ public class CommandsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating command result");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 }

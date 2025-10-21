@@ -3,6 +3,7 @@ using SADAB.Shared.DTOs;
 using System.Management;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
+using Microsoft.Extensions.Configuration;
 
 namespace SADAB.Agent.Services;
 
@@ -15,19 +16,25 @@ public interface IInventoryCollectorService
 public class WindowsInventoryCollectorService : IInventoryCollectorService
 {
     private readonly AgentConfiguration _configuration;
+    private readonly IConfiguration _appConfiguration;
     private readonly ILogger<WindowsInventoryCollectorService> _logger;
+    private readonly string _unknownValue;
 
     public WindowsInventoryCollectorService(
         AgentConfiguration configuration,
+        IConfiguration appConfiguration,
         ILogger<WindowsInventoryCollectorService> logger)
     {
         _configuration = configuration;
+        _appConfiguration = appConfiguration;
         _logger = logger;
+
+        _unknownValue = _appConfiguration["DefaultValues:Unknown"] ?? "Unknown";
     }
 
     public async Task<InventoryDataDto> CollectInventoryAsync()
     {
-        _logger.LogInformation("Collecting inventory data");
+        _logger.LogInformation(_appConfiguration["Messages:CollectingInventory"] ?? "Collecting inventory data");
 
         var inventory = new InventoryDataDto
         {
@@ -46,7 +53,7 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error collecting inventory");
+                _logger.LogError(ex, _appConfiguration["Messages:ErrorCollectingInventory"] ?? "Error collecting inventory");
             }
         });
 
@@ -62,7 +69,7 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
             {
                 foreach (ManagementObject obj in searcher.Get())
                 {
-                    inventory.HardwareInfo["Processor"] = obj["Name"]?.ToString() ?? "Unknown";
+                    inventory.HardwareInfo["Processor"] = obj["Name"]?.ToString() ?? _unknownValue;
                     break;
                 }
             }
@@ -93,8 +100,8 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
             {
                 foreach (ManagementObject obj in searcher.Get())
                 {
-                    inventory.HardwareInfo["BiosVersion"] = obj["SMBIOSBIOSVersion"]?.ToString() ?? "Unknown";
-                    inventory.HardwareInfo["Manufacturer"] = obj["Manufacturer"]?.ToString() ?? "Unknown";
+                    inventory.HardwareInfo["BiosVersion"] = obj["SMBIOSBIOSVersion"]?.ToString() ?? _unknownValue;
+                    inventory.HardwareInfo["Manufacturer"] = obj["Manufacturer"]?.ToString() ?? _unknownValue;
                     break;
                 }
             }
@@ -104,7 +111,7 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
             {
                 foreach (ManagementObject obj in searcher.Get())
                 {
-                    inventory.HardwareInfo["Model"] = obj["Model"]?.ToString() ?? "Unknown";
+                    inventory.HardwareInfo["Model"] = obj["Model"]?.ToString() ?? _unknownValue;
                     break;
                 }
             }
@@ -120,10 +127,10 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
 
                     disks.Add(new
                     {
-                        Name = obj["Name"]?.ToString() ?? "Unknown",
+                        Name = obj["Name"]?.ToString() ?? _unknownValue,
                         TotalSizeGB = size,
                         FreeSizeGB = freeSpace,
-                        FileSystem = obj["FileSystem"]?.ToString() ?? "Unknown"
+                        FileSystem = obj["FileSystem"]?.ToString() ?? _unknownValue
                     });
                 }
             }
@@ -131,7 +138,7 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error collecting hardware info");
+            _logger.LogError(ex, _appConfiguration["Messages:ErrorCollectingHardwareInfo"] ?? "Error collecting hardware info");
         }
     }
 
@@ -189,7 +196,8 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Error reading registry path {Path}", path);
+                    var errorMessage = _appConfiguration["Messages:ErrorReadingRegistryPath"] ?? "Error reading registry path {0}";
+                    _logger.LogWarning(ex, string.Format(errorMessage, path));
                 }
             }
 
@@ -197,7 +205,7 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error collecting installed software");
+            _logger.LogError(ex, _appConfiguration["Messages:ErrorCollectingInstalledSoftware"] ?? "Error collecting installed software");
         }
     }
 
@@ -213,7 +221,7 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error collecting environment variables");
+            _logger.LogError(ex, _appConfiguration["Messages:ErrorCollectingEnvironmentVariables"] ?? "Error collecting environment variables");
         }
     }
 
@@ -233,7 +241,7 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error collecting running services");
+            _logger.LogError(ex, _appConfiguration["Messages:ErrorCollectingRunningServices"] ?? "Error collecting running services");
         }
     }
 }
@@ -242,19 +250,22 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
 public class GenericInventoryCollectorService : IInventoryCollectorService
 {
     private readonly AgentConfiguration _configuration;
+    private readonly IConfiguration _appConfiguration;
     private readonly ILogger<GenericInventoryCollectorService> _logger;
 
     public GenericInventoryCollectorService(
         AgentConfiguration configuration,
+        IConfiguration appConfiguration,
         ILogger<GenericInventoryCollectorService> logger)
     {
         _configuration = configuration;
+        _appConfiguration = appConfiguration;
         _logger = logger;
     }
 
     public Task<InventoryDataDto> CollectInventoryAsync()
     {
-        _logger.LogWarning("Inventory collection not implemented for this platform");
+        _logger.LogWarning(_appConfiguration["Messages:InventoryNotImplementedForPlatform"] ?? "Inventory collection not implemented for this platform");
 
         return Task.FromResult(new InventoryDataDto
         {
