@@ -1,0 +1,183 @@
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using SADAB.Server.Data;
+using SADAB.Server.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace SADAB.Server.Services;
+
+public interface ICertificateService
+{
+    Task<(string certificate, string privateKey, DateTime expiresAt)> GenerateCertificateAsync(Guid agentId, string machineName, int validityDays = 60);
+    Task<bool> ValidateCertificateAsync(string thumbprint);
+    Task RevokeCertificateAsync(string thumbprint, string reason);
+    Task<AgentCertificate?> GetCertificateByThumbprintAsync(string thumbprint);
+}
+
+public class CertificateService : ICertificateService
+{
+    private readonly ApplicationDbContext _context;
+    private readonly ILogger<CertificateService> _logger;
+
+    public CertificateService(ApplicationDbContext context, ILogger<CertificateService> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    public async Task<(string certificate, string privateKey, DateTime expiresAt)> GenerateCertificateAsync(
+        Guid agentId, string machineName, int validityDays = 60)
+    {
+        try
+        {
+            // Generate RSA key pair
+            using var rsa = RSA.Create(2048);
+
+            // Create certificate request
+            var subject = new X500DistinguishedName($"CN={machineName},O=SADAB,OU=Agent-{agentId}");
+            var request = new CertificateRequest(
+                subject,
+                rsa,
+                HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1);
+
+            // Add extensions
+            request.CertificateExtensions.Add(
+                new X509KeyUsageExtension(
+                    X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment,
+                    critical: true));
+
+            request.CertificateExtensions.Add(
+                new X509EnhancedKeyUsageExtension(
+                    new OidCollection { new Oid("1.3.6.1.5.5.7.3.2") }, // Client Authentication
+                    critical: true));
+
+            request.CertificateExtensions.Add(
+                new X509SubjectKeyIdentifierExtension(request.PublicKey, critical: false));
+
+            // Generate self-signed certificate
+            var notBefore = DateTimeOffset.UtcNow;
+            var notAfter = notBefore.AddDays(validityDays);
+
+            var certificate = request.CreateSelfSigned(notBefore, notAfter);
+
+            // Export certificate and private key
+            var certPem = ExportCertificateToPem(certificate);
+            var keyPem = ExportPrivateKeyToPem(rsa);
+            var thumbprint = certificate.Thumbprint;
+
+            // Store in database
+            var agentCertificate = new AgentCertificate
+            {
+                Id = Guid.NewGuid(),
+                AgentId = agentId,
+                Thumbprint = thumbprint,
+                CertificateData = certPem,
+                IssuedAt = DateTime.UtcNow,
+                ExpiresAt = notAfter.UtcDateTime,
+                IsRevoked = false
+            };
+
+            _context.AgentCertificates.Add(agentCertificate);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Generated certificate for agent {AgentId} with thumbprint {Thumbprint}",
+                agentId, thumbprint);
+
+            return (certPem, keyPem, notAfter.UtcDateTime);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating certificate for agent {AgentId}", agentId);
+            throw;
+        }
+    }
+
+    public async Task<bool> ValidateCertificateAsync(string thumbprint)
+    {
+        var cert = await _context.AgentCertificates
+            .FirstOrDefaultAsync(c => c.Thumbprint == thumbprint);
+
+        if (cert == null)
+        {
+            _logger.LogWarning("Certificate with thumbprint {Thumbprint} not found", thumbprint);
+            return false;
+        }
+
+        if (cert.IsRevoked)
+        {
+            _logger.LogWarning("Certificate {Thumbprint} is revoked", thumbprint);
+            return false;
+        }
+
+        if (cert.ExpiresAt < DateTime.UtcNow)
+        {
+            _logger.LogWarning("Certificate {Thumbprint} is expired", thumbprint);
+            return false;
+        }
+
+        return true;
+    }
+
+    public async Task RevokeCertificateAsync(string thumbprint, string reason)
+    {
+        var cert = await _context.AgentCertificates
+            .FirstOrDefaultAsync(c => c.Thumbprint == thumbprint);
+
+        if (cert == null)
+        {
+            throw new InvalidOperationException($"Certificate {thumbprint} not found");
+        }
+
+        cert.IsRevoked = true;
+        cert.RevokedAt = DateTime.UtcNow;
+        cert.RevocationReason = reason;
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Revoked certificate {Thumbprint}: {Reason}", thumbprint, reason);
+    }
+
+    public async Task<AgentCertificate?> GetCertificateByThumbprintAsync(string thumbprint)
+    {
+        return await _context.AgentCertificates
+            .Include(c => c.Agent)
+            .FirstOrDefaultAsync(c => c.Thumbprint == thumbprint);
+    }
+
+    private static string ExportCertificateToPem(X509Certificate2 certificate)
+    {
+        var certBytes = certificate.Export(X509ContentType.Cert);
+        var certBase64 = Convert.ToBase64String(certBytes);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("-----BEGIN CERTIFICATE-----");
+
+        for (int i = 0; i < certBase64.Length; i += 64)
+        {
+            var length = Math.Min(64, certBase64.Length - i);
+            sb.AppendLine(certBase64.Substring(i, length));
+        }
+
+        sb.AppendLine("-----END CERTIFICATE-----");
+        return sb.ToString();
+    }
+
+    private static string ExportPrivateKeyToPem(RSA rsa)
+    {
+        var keyBytes = rsa.ExportRSAPrivateKey();
+        var keyBase64 = Convert.ToBase64String(keyBytes);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("-----BEGIN RSA PRIVATE KEY-----");
+
+        for (int i = 0; i < keyBase64.Length; i += 64)
+        {
+            var length = Math.Min(64, keyBase64.Length - i);
+            sb.AppendLine(keyBase64.Substring(i, length));
+        }
+
+        sb.AppendLine("-----END RSA PRIVATE KEY-----");
+        return sb.ToString();
+    }
+}
