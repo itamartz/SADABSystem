@@ -3,6 +3,7 @@ using SADAB.Shared.DTOs;
 using SADAB.Shared.Enums;
 using System.Diagnostics;
 using System.Text;
+using Microsoft.Extensions.Configuration;
 
 namespace SADAB.Agent.Services;
 
@@ -15,16 +16,22 @@ public class CommandExecutorService : ICommandExecutorService
 {
     private readonly IApiClientService _apiClient;
     private readonly AgentConfiguration _configuration;
+    private readonly IConfiguration _appConfiguration;
     private readonly ILogger<CommandExecutorService> _logger;
+    private readonly int _defaultTimeoutMinutes;
 
     public CommandExecutorService(
         IApiClientService apiClient,
         AgentConfiguration configuration,
+        IConfiguration appConfiguration,
         ILogger<CommandExecutorService> logger)
     {
         _apiClient = apiClient;
         _configuration = configuration;
+        _appConfiguration = appConfiguration;
         _logger = logger;
+
+        _defaultTimeoutMinutes = _appConfiguration.GetValue<int>("CommandSettings:DefaultTimeoutMinutes");
     }
 
     public async Task ExecuteCommandAsync(CommandExecutionDto command)
@@ -33,7 +40,8 @@ public class CommandExecutorService : ICommandExecutorService
 
         try
         {
-            _logger.LogInformation("Executing command {CommandId}: {Command}", command.Id, command.Command);
+            var executingMessage = _appConfiguration["Messages:ExecutingCommand"] ?? "Executing command {0}: {1}";
+            _logger.LogInformation(string.Format(executingMessage, command.Id, command.Command));
 
             var processInfo = new ProcessStartInfo
             {
@@ -64,7 +72,7 @@ public class CommandExecutorService : ICommandExecutorService
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            var timeout = TimeSpan.FromMinutes(5); // Default timeout
+            var timeout = TimeSpan.FromMinutes(_defaultTimeoutMinutes);
             var completed = await Task.Run(() => process.WaitForExit((int)timeout.TotalMilliseconds));
 
             CommandExecutionDto result;
@@ -82,7 +90,7 @@ public class CommandExecutorService : ICommandExecutorService
                     RequestedAt = command.RequestedAt,
                     StartedAt = startTime,
                     CompletedAt = DateTime.UtcNow,
-                    ErrorOutput = "Command execution timed out"
+                    ErrorOutput = _appConfiguration["Messages:CommandExecutionTimedOut"] ?? "Command execution timed out"
                 };
             }
             else
@@ -108,11 +116,13 @@ public class CommandExecutorService : ICommandExecutorService
 
             await _apiClient.UpdateCommandResultAsync(command.Id, result);
 
-            _logger.LogInformation("Command {CommandId} completed with status {Status}", command.Id, result.Status);
+            var completedMessage = _appConfiguration["Messages:CommandCompleted"] ?? "Command {0} completed with status {1}";
+            _logger.LogInformation(string.Format(completedMessage, command.Id, result.Status));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing command {CommandId}", command.Id);
+            var errorMessage = _appConfiguration["Messages:ErrorExecutingCommand"] ?? "Error executing command {0}";
+            _logger.LogError(ex, string.Format(errorMessage, command.Id));
 
             var errorResult = new CommandExecutionDto
             {

@@ -18,12 +18,36 @@ public interface ICertificateService
 public class CertificateService : ICertificateService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<CertificateService> _logger;
+    private readonly int _keySize;
+    private readonly string _organization;
+    private readonly string _organizationalUnit;
+    private readonly string _clientAuthenticationOid;
+    private readonly string _certBeginMarker;
+    private readonly string _certEndMarker;
+    private readonly string _keyBeginMarker;
+    private readonly string _keyEndMarker;
+    private readonly int _pemLineLength;
 
-    public CertificateService(ApplicationDbContext context, ILogger<CertificateService> logger)
+    public CertificateService(
+        ApplicationDbContext context,
+        IConfiguration configuration,
+        ILogger<CertificateService> logger)
     {
         _context = context;
+        _configuration = configuration;
         _logger = logger;
+
+        _keySize = _configuration.GetValue<int>("CertificateSettings:KeySize");
+        _organization = _configuration["CertificateSettings:Organization"] ?? "SADAB";
+        _organizationalUnit = _configuration["CertificateSettings:OrganizationalUnit"] ?? "Agent";
+        _clientAuthenticationOid = "1.3.6.1.5.5.7.3.2";
+        _certBeginMarker = "-----BEGIN CERTIFICATE-----";
+        _certEndMarker = "-----END CERTIFICATE-----";
+        _keyBeginMarker = "-----BEGIN RSA PRIVATE KEY-----";
+        _keyEndMarker = "-----END RSA PRIVATE KEY-----";
+        _pemLineLength = 64;
     }
 
     public async Task<(string certificate, string privateKey, DateTime expiresAt)> GenerateCertificateAsync(
@@ -31,11 +55,17 @@ public class CertificateService : ICertificateService
     {
         try
         {
+            // Use configured validity days if default is provided
+            if (validityDays == 60)
+            {
+                validityDays = _configuration.GetValue<int>("CertificateSettings:ValidityDays");
+            }
+
             // Generate RSA key pair
-            using var rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(_keySize);
 
             // Create certificate request
-            var subject = new X500DistinguishedName($"CN={machineName},O=SADAB,OU=Agent-{agentId}");
+            var subject = new X500DistinguishedName($"CN={machineName},O={_organization},OU={_organizationalUnit}-{agentId}");
             var request = new CertificateRequest(
                 subject,
                 rsa,
@@ -50,7 +80,7 @@ public class CertificateService : ICertificateService
 
             request.CertificateExtensions.Add(
                 new X509EnhancedKeyUsageExtension(
-                    new OidCollection { new Oid("1.3.6.1.5.5.7.3.2") }, // Client Authentication
+                    new OidCollection { new Oid(_clientAuthenticationOid) },
                     critical: true));
 
             request.CertificateExtensions.Add(
@@ -145,39 +175,39 @@ public class CertificateService : ICertificateService
             .FirstOrDefaultAsync(c => c.Thumbprint == thumbprint);
     }
 
-    private static string ExportCertificateToPem(X509Certificate2 certificate)
+    private string ExportCertificateToPem(X509Certificate2 certificate)
     {
         var certBytes = certificate.Export(X509ContentType.Cert);
         var certBase64 = Convert.ToBase64String(certBytes);
 
         var sb = new StringBuilder();
-        sb.AppendLine("-----BEGIN CERTIFICATE-----");
+        sb.AppendLine(_certBeginMarker);
 
-        for (int i = 0; i < certBase64.Length; i += 64)
+        for (int i = 0; i < certBase64.Length; i += _pemLineLength)
         {
-            var length = Math.Min(64, certBase64.Length - i);
+            var length = Math.Min(_pemLineLength, certBase64.Length - i);
             sb.AppendLine(certBase64.Substring(i, length));
         }
 
-        sb.AppendLine("-----END CERTIFICATE-----");
+        sb.AppendLine(_certEndMarker);
         return sb.ToString();
     }
 
-    private static string ExportPrivateKeyToPem(RSA rsa)
+    private string ExportPrivateKeyToPem(RSA rsa)
     {
         var keyBytes = rsa.ExportRSAPrivateKey();
         var keyBase64 = Convert.ToBase64String(keyBytes);
 
         var sb = new StringBuilder();
-        sb.AppendLine("-----BEGIN RSA PRIVATE KEY-----");
+        sb.AppendLine(_keyBeginMarker);
 
-        for (int i = 0; i < keyBase64.Length; i += 64)
+        for (int i = 0; i < keyBase64.Length; i += _pemLineLength)
         {
-            var length = Math.Min(64, keyBase64.Length - i);
+            var length = Math.Min(_pemLineLength, keyBase64.Length - i);
             sb.AppendLine(keyBase64.Substring(i, length));
         }
 
-        sb.AppendLine("-----END RSA PRIVATE KEY-----");
+        sb.AppendLine(_keyEndMarker);
         return sb.ToString();
     }
 }

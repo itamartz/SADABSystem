@@ -41,7 +41,8 @@ public class DeploymentsController : ControllerBase
 
             if (!Directory.Exists(packagePath))
             {
-                return BadRequest(new { message = $"Deployment folder '{request.PackageFolderName}' does not exist" });
+                var errorMessage = _configuration["Messages:DeploymentFolderNotFound"] ?? "Deployment folder '{0}' does not exist";
+                return BadRequest(new { message = string.Format(errorMessage, request.PackageFolderName) });
             }
 
             var deployment = new Deployment
@@ -100,7 +101,7 @@ public class DeploymentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating deployment");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -134,7 +135,7 @@ public class DeploymentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving deployments");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -154,7 +155,7 @@ public class DeploymentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving deployment {DeploymentId}", id);
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -186,7 +187,7 @@ public class DeploymentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving deployment results for {DeploymentId}", id);
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -246,7 +247,7 @@ public class DeploymentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving pending deployments");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -285,7 +286,7 @@ public class DeploymentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating deployment result");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -321,7 +322,7 @@ public class DeploymentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error downloading deployment file");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 

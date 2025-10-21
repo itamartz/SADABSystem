@@ -15,4 +15,15 @@ public class AgentConfiguration
     public string WorkingDirectory { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
         "SADAB", "Agent");
+
+    public override string ToString()
+    {
+        return $"ServerUrl={ServerUrl}, AgentId={AgentId?.ToString() ?? "null"}, " +
+               $"CertificatePath={CertificatePath ?? "null"}, PrivateKeyPath={PrivateKeyPath ?? "null"}, " +
+               $"CertificateThumbprint={CertificateThumbprint ?? "null"}, " +
+               $"CertificateExpiresAt={CertificateExpiresAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}, " +
+               $"HeartbeatIntervalSeconds={HeartbeatIntervalSeconds}, DeploymentCheckIntervalSeconds={DeploymentCheckIntervalSeconds}, " +
+               $"CommandCheckIntervalSeconds={CommandCheckIntervalSeconds}, InventoryCollectionIntervalMinutes={InventoryCollectionIntervalMinutes}, " +
+               $"WorkingDirectory={WorkingDirectory}";
+    }
 }

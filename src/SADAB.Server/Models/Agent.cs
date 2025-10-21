@@ -21,4 +21,13 @@ public class Agent
     public ICollection<DeploymentResult> DeploymentResults { get; set; } = new List<DeploymentResult>();
     public ICollection<InventoryData> InventoryData { get; set; } = new List<InventoryData>();
     public ICollection<CommandExecution> CommandExecutions { get; set; } = new List<CommandExecution>();
+
+    public override string ToString()
+    {
+        return $"Id={Id}, MachineName={MachineName}, MachineId={MachineId}, OperatingSystem={OperatingSystem}, " +
+               $"IpAddress={IpAddress ?? "null"}, Status={Status}, LastHeartbeat={LastHeartbeat:yyyy-MM-dd HH:mm:ss}, " +
+               $"RegisteredAt={RegisteredAt:yyyy-MM-dd HH:mm:ss}, CurrentCertificateThumbprint={CurrentCertificateThumbprint ?? "null"}, " +
+               $"CertificateExpiresAt={CertificateExpiresAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}, " +
+               $"Metadata={Metadata ?? "null"}";
+    }
 }

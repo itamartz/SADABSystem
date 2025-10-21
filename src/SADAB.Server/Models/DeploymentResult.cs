@@ -17,4 +17,13 @@ public class DeploymentResult
     // Navigation properties
     public Deployment Deployment { get; set; } = null!;
     public Agent Agent { get; set; } = null!;
+
+    public override string ToString()
+    {
+        return $"Id={Id}, DeploymentId={DeploymentId}, AgentId={AgentId}, Status={Status}, " +
+               $"StartedAt={StartedAt:yyyy-MM-dd HH:mm:ss}, CompletedAt={CompletedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}, " +
+               $"ExitCode={ExitCode?.ToString() ?? "null"}, " +
+               $"Output={(Output != null ? $"\"{Output.Substring(0, Math.Min(50, Output.Length))}...\"" : "null")}, " +
+               $"ErrorMessage={ErrorMessage ?? "null"}";
+    }
 }

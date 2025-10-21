@@ -3,6 +3,7 @@ using SADAB.Shared.DTOs;
 using SADAB.Shared.Enums;
 using System.Diagnostics;
 using System.Text;
+using Microsoft.Extensions.Configuration;
 
 namespace SADAB.Agent.Services;
 
@@ -15,26 +16,47 @@ public class DeploymentExecutorService : IDeploymentExecutorService
 {
     private readonly IApiClientService _apiClient;
     private readonly AgentConfiguration _configuration;
+    private readonly IConfiguration _appConfiguration;
     private readonly ILogger<DeploymentExecutorService> _logger;
+    private readonly string _deploymentsSubFolder;
+    private readonly string _powerShellExe;
+    private readonly string _powerShellArgs;
+    private readonly string _cmdExe;
+    private readonly string _cmdArgs;
+    private readonly string _psExtension;
+    private readonly string _batExtension;
+    private readonly string _cmdExtension;
 
     public DeploymentExecutorService(
         IApiClientService apiClient,
         AgentConfiguration configuration,
+        IConfiguration appConfiguration,
         ILogger<DeploymentExecutorService> logger)
     {
         _apiClient = apiClient;
         _configuration = configuration;
+        _appConfiguration = appConfiguration;
         _logger = logger;
+
+        _deploymentsSubFolder = _appConfiguration["PathSettings:DeploymentsSubFolder"] ?? "Deployments";
+        _powerShellExe = _appConfiguration["ExecutableSettings:PowerShell"] ?? "powershell.exe";
+        _powerShellArgs = _appConfiguration["ExecutableSettings:PowerShellArgs"] ?? "-ExecutionPolicy Bypass -File";
+        _cmdExe = _appConfiguration["ExecutableSettings:CommandPrompt"] ?? "cmd.exe";
+        _cmdArgs = _appConfiguration["ExecutableSettings:CommandPromptArgs"] ?? "/c";
+        _psExtension = _appConfiguration["FileExtensions:PowerShell"] ?? ".ps1";
+        _batExtension = _appConfiguration["FileExtensions:BatchScript"] ?? ".bat";
+        _cmdExtension = _appConfiguration["FileExtensions:CommandScript"] ?? ".cmd";
     }
 
     public async Task ExecuteDeploymentAsync(DeploymentTaskDto deployment)
     {
-        var deploymentPath = Path.Combine(_configuration.WorkingDirectory, "Deployments", deployment.DeploymentId.ToString());
+        var deploymentPath = Path.Combine(_configuration.WorkingDirectory, _deploymentsSubFolder, deployment.DeploymentId.ToString());
         var startTime = DateTime.UtcNow;
 
         try
         {
-            _logger.LogInformation("Starting deployment {DeploymentId}: {Name}", deployment.DeploymentId, deployment.Name);
+            var startingMessage = _appConfiguration["Messages:StartingDeployment"] ?? "Starting deployment {0}: {1}";
+            _logger.LogInformation(string.Format(startingMessage, deployment.DeploymentId, deployment.Name));
 
             // Create deployment directory
             Directory.CreateDirectory(deploymentPath);
@@ -54,7 +76,8 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 if (fileData != null)
                 {
                     await File.WriteAllBytesAsync(localPath, fileData);
-                    _logger.LogDebug("Downloaded file: {File}", file);
+                    var downloadedMessage = _appConfiguration["Messages:DownloadedFile"] ?? "Downloaded file: {0}";
+                    _logger.LogDebug(string.Format(downloadedMessage, file));
                 }
             }
 
@@ -81,6 +104,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                     break;
 
                 default:
+                    var unsupportedMessage = _appConfiguration["Messages:UnsupportedDeploymentType"] ?? "Unsupported deployment type: {0}";
                     result = new DeploymentResultDto
                     {
                         DeploymentId = deployment.DeploymentId,
@@ -88,7 +112,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                         Status = DeploymentStatus.Failed,
                         StartedAt = startTime,
                         CompletedAt = DateTime.UtcNow,
-                        ErrorMessage = $"Unsupported deployment type: {deployment.Type}"
+                        ErrorMessage = string.Format(unsupportedMessage, deployment.Type)
                     };
                     break;
             }
@@ -96,12 +120,13 @@ public class DeploymentExecutorService : IDeploymentExecutorService
             // Send result to server
             await _apiClient.UpdateDeploymentResultAsync(deployment.DeploymentId, result);
 
-            _logger.LogInformation("Deployment {DeploymentId} completed with status {Status}",
-                deployment.DeploymentId, result.Status);
+            var completedMessage = _appConfiguration["Messages:DeploymentCompleted"] ?? "Deployment {0} completed with status {1}";
+            _logger.LogInformation(string.Format(completedMessage, deployment.DeploymentId, result.Status));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing deployment {DeploymentId}", deployment.DeploymentId);
+            var errorMessage = _appConfiguration["Messages:ErrorExecutingDeployment"] ?? "Error executing deployment {0}";
+            _logger.LogError(ex, string.Format(errorMessage, deployment.DeploymentId));
 
             var errorResult = new DeploymentResultDto
             {
@@ -127,7 +152,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error cleaning up deployment directory");
+                _logger.LogWarning(ex, _appConfiguration["Messages:ErrorCleanupDeploymentDirectory"] ?? "Error cleaning up deployment directory");
             }
         }
     }
@@ -148,7 +173,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 Status = DeploymentStatus.Failed,
                 StartedAt = startTime,
                 CompletedAt = DateTime.UtcNow,
-                ErrorMessage = "No executable specified"
+                ErrorMessage = _appConfiguration["Messages:NoExecutableSpecified"] ?? "No executable specified"
             };
         }
 
@@ -175,7 +200,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
     private async Task<DeploymentResultDto> ExecutePowerShellAsync(
         DeploymentTaskDto deployment, string deploymentPath, DateTime startTime)
     {
-        var scriptPath = deployment.ExecutablePath ?? deployment.Files.FirstOrDefault(f => f.EndsWith(".ps1"));
+        var scriptPath = deployment.ExecutablePath ?? deployment.Files.FirstOrDefault(f => f.EndsWith(_psExtension));
 
         if (string.IsNullOrEmpty(scriptPath))
         {
@@ -186,7 +211,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 Status = DeploymentStatus.Failed,
                 StartedAt = startTime,
                 CompletedAt = DateTime.UtcNow,
-                ErrorMessage = "No PowerShell script specified"
+                ErrorMessage = _appConfiguration["Messages:NoPowerShellScriptSpecified"] ?? "No PowerShell script specified"
             };
         }
 
@@ -194,8 +219,8 @@ public class DeploymentExecutorService : IDeploymentExecutorService
 
         var processInfo = new ProcessStartInfo
         {
-            FileName = "powershell.exe",
-            Arguments = $"-ExecutionPolicy Bypass -File \"{fullPath}\" {deployment.Arguments}",
+            FileName = _powerShellExe,
+            Arguments = $"{_powerShellArgs} \"{fullPath}\" {deployment.Arguments}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -208,7 +233,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
     private async Task<DeploymentResultDto> ExecuteBatchAsync(
         DeploymentTaskDto deployment, string deploymentPath, DateTime startTime)
     {
-        var scriptPath = deployment.ExecutablePath ?? deployment.Files.FirstOrDefault(f => f.EndsWith(".bat") || f.EndsWith(".cmd"));
+        var scriptPath = deployment.ExecutablePath ?? deployment.Files.FirstOrDefault(f => f.EndsWith(_batExtension) || f.EndsWith(_cmdExtension));
 
         if (string.IsNullOrEmpty(scriptPath))
         {
@@ -219,7 +244,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 Status = DeploymentStatus.Failed,
                 StartedAt = startTime,
                 CompletedAt = DateTime.UtcNow,
-                ErrorMessage = "No batch script specified"
+                ErrorMessage = _appConfiguration["Messages:NoBatchScriptSpecified"] ?? "No batch script specified"
             };
         }
 
@@ -227,8 +252,8 @@ public class DeploymentExecutorService : IDeploymentExecutorService
 
         var processInfo = new ProcessStartInfo
         {
-            FileName = "cmd.exe",
-            Arguments = $"/c \"{fullPath}\" {deployment.Arguments}",
+            FileName = _cmdExe,
+            Arguments = $"{_cmdArgs} \"{fullPath}\" {deployment.Arguments}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -244,9 +269,12 @@ public class DeploymentExecutorService : IDeploymentExecutorService
     {
         try
         {
+            var programDataFolder = _appConfiguration["PathSettings:ProgramDataFolder"] ?? "SADAB";
+            var deploymentsSubFolder = _appConfiguration["PathSettings:DeploymentsSubFolder"] ?? "Deployments";
+
             var targetPath = deployment.Arguments ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-                "SADAB", "Deployments", deployment.Name);
+                programDataFolder, deploymentsSubFolder, deployment.Name);
 
             Directory.CreateDirectory(targetPath);
 
@@ -264,6 +292,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 File.Copy(sourcePath, destPath, overwrite: true);
             }
 
+            var copiedMessage = _appConfiguration["Messages:FilesCopiedTo"] ?? "Files copied to {0}";
             return new DeploymentResultDto
             {
                 DeploymentId = deployment.DeploymentId,
@@ -272,7 +301,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 StartedAt = startTime,
                 CompletedAt = DateTime.UtcNow,
                 ExitCode = 0,
-                Output = $"Files copied to {targetPath}"
+                Output = string.Format(copiedMessage, targetPath)
             };
         }
         catch (Exception ex)
@@ -326,7 +355,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                     Status = DeploymentStatus.Failed,
                     StartedAt = startTime,
                     CompletedAt = DateTime.UtcNow,
-                    ErrorMessage = "Deployment timed out"
+                    ErrorMessage = _appConfiguration["Messages:DeploymentTimedOut"] ?? "Deployment timed out"
                 };
             }
 

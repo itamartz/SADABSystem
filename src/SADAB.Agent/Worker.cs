@@ -4,21 +4,30 @@ using SADAB.Shared.DTOs;
 using SADAB.Shared.Enums;
 using System.Net.NetworkInformation;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace SADAB.Agent;
 
 public class Worker : BackgroundService
 {
     private readonly AgentConfiguration _configuration;
+    private readonly IConfiguration _appConfiguration;
     private readonly IApiClientService _apiClient;
     private readonly IDeploymentExecutorService _deploymentExecutor;
     private readonly ICommandExecutorService _commandExecutor;
     private readonly IInventoryCollectorService _inventoryCollector;
     private readonly ILogger<Worker> _logger;
     private readonly IHostApplicationLifetime _lifetime;
+    private readonly string _certificateFileName;
+    private readonly string _privateKeyFileName;
+    private readonly string _configFileName;
+    private readonly int _certificateRefreshThresholdDays;
+    private readonly int _certificateRefreshCheckIntervalHours;
+    private readonly int _inventoryInitialDelayMinutes;
 
     public Worker(
         AgentConfiguration configuration,
+        IConfiguration appConfiguration,
         IApiClientService apiClient,
         IDeploymentExecutorService deploymentExecutor,
         ICommandExecutorService commandExecutor,
@@ -27,19 +36,27 @@ public class Worker : BackgroundService
         IHostApplicationLifetime lifetime)
     {
         _configuration = configuration;
+        _appConfiguration = appConfiguration;
         _apiClient = apiClient;
         _deploymentExecutor = deploymentExecutor;
         _commandExecutor = commandExecutor;
         _inventoryCollector = inventoryCollector;
         _logger = logger;
         _lifetime = lifetime;
+
+        _certificateFileName = _appConfiguration["AgentSettings:CertificateFileName"] ?? "agent.crt";
+        _privateKeyFileName = _appConfiguration["AgentSettings:PrivateKeyFileName"] ?? "agent.key";
+        _configFileName = _appConfiguration["AgentSettings:ConfigFileName"] ?? "config.json";
+        _certificateRefreshThresholdDays = _appConfiguration.GetValue<int>("AgentSettings:CertificateRefreshThresholdDays");
+        _certificateRefreshCheckIntervalHours = _appConfiguration.GetValue<int>("AgentSettings:CertificateRefreshCheckIntervalHours");
+        _inventoryInitialDelayMinutes = 1; // Could be configurable too
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
         {
-            _logger.LogInformation("SADAB Agent starting...");
+            _logger.LogInformation(_appConfiguration["Messages:StartingAgent"] ?? "SADAB Agent starting...");
 
             // Ensure working directory exists
             Directory.CreateDirectory(_configuration.WorkingDirectory);
@@ -52,12 +69,13 @@ public class Worker : BackgroundService
 
             if (!_configuration.AgentId.HasValue)
             {
-                _logger.LogError("Failed to register agent. Stopping service.");
+                _logger.LogError(_appConfiguration["Messages:RegistrationFailed"] ?? "Failed to register agent. Stopping service.");
                 _lifetime.StopApplication();
                 return;
             }
 
-            _logger.LogInformation("SADAB Agent started with ID: {AgentId}", _configuration.AgentId);
+            var startedMessage = _appConfiguration["Messages:AgentStarted"] ?? "SADAB Agent started with ID: {0}";
+            _logger.LogInformation(startedMessage, _configuration.AgentId);
 
             // Start background tasks
             var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
@@ -109,8 +127,8 @@ public class Worker : BackgroundService
                 _configuration.CertificateExpiresAt = response.ExpiresAt;
 
                 // Save certificate and private key
-                var certPath = Path.Combine(_configuration.WorkingDirectory, "agent.crt");
-                var keyPath = Path.Combine(_configuration.WorkingDirectory, "agent.key");
+                var certPath = Path.Combine(_configuration.WorkingDirectory, _certificateFileName);
+                var keyPath = Path.Combine(_configuration.WorkingDirectory, _privateKeyFileName);
 
                 await File.WriteAllTextAsync(certPath, response.Certificate);
                 await File.WriteAllTextAsync(keyPath, response.PrivateKey);
@@ -156,7 +174,7 @@ public class Worker : BackgroundService
                 };
 
                 await _apiClient.SendHeartbeatAsync(request);
-                _logger.LogDebug("Heartbeat sent");
+                _logger.LogDebug(_appConfiguration["Messages:HeartbeatSent"] ?? "Heartbeat sent");
             }
             catch (Exception ex)
             {
@@ -234,7 +252,7 @@ public class Worker : BackgroundService
     private async Task InventoryCollectionLoopAsync(CancellationToken stoppingToken)
     {
         // Initial delay before first collection
-        await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+        await Task.Delay(TimeSpan.FromMinutes(_inventoryInitialDelayMinutes), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -243,7 +261,7 @@ public class Worker : BackgroundService
                 var inventory = await _inventoryCollector.CollectInventoryAsync();
                 await _apiClient.SubmitInventoryAsync(inventory);
 
-                _logger.LogInformation("Inventory data submitted");
+                _logger.LogInformation(_appConfiguration["Messages:InventorySubmitted"] ?? "Inventory data submitted");
             }
             catch (Exception ex)
             {
@@ -264,10 +282,11 @@ public class Worker : BackgroundService
                 {
                     var daysUntilExpiry = (_configuration.CertificateExpiresAt.Value - DateTime.UtcNow).TotalDays;
 
-                    // Refresh certificate 7 days before expiration
-                    if (daysUntilExpiry <= 7)
+                    // Refresh certificate based on configured threshold
+                    if (daysUntilExpiry <= _certificateRefreshThresholdDays)
                     {
-                        _logger.LogInformation("Certificate expires in {Days} days, refreshing...", daysUntilExpiry);
+                        var expiringMessage = _appConfiguration["Messages:CertificateExpiring"] ?? "Certificate expires in {0} days, refreshing...";
+                        _logger.LogInformation(expiringMessage, daysUntilExpiry);
 
                         var request = new CertificateRefreshRequest
                         {
@@ -282,8 +301,8 @@ public class Worker : BackgroundService
                             _configuration.CertificateExpiresAt = response.ExpiresAt;
 
                             // Save new certificate and private key
-                            var certPath = Path.Combine(_configuration.WorkingDirectory, "agent.crt");
-                            var keyPath = Path.Combine(_configuration.WorkingDirectory, "agent.key");
+                            var certPath = Path.Combine(_configuration.WorkingDirectory, _certificateFileName);
+                            var keyPath = Path.Combine(_configuration.WorkingDirectory, _privateKeyFileName);
 
                             await File.WriteAllTextAsync(certPath, response.Certificate);
                             await File.WriteAllTextAsync(keyPath, response.PrivateKey);
@@ -292,7 +311,7 @@ public class Worker : BackgroundService
 
                             await SaveConfigurationAsync();
 
-                            _logger.LogInformation("Certificate refreshed successfully");
+                            _logger.LogInformation(_appConfiguration["Messages:CertificateRefreshed"] ?? "Certificate refreshed successfully");
                         }
                     }
                 }
@@ -302,8 +321,8 @@ public class Worker : BackgroundService
                 _logger.LogError(ex, "Error refreshing certificate");
             }
 
-            // Check every hour
-            await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+            // Check based on configured interval
+            await Task.Delay(TimeSpan.FromHours(_certificateRefreshCheckIntervalHours), stoppingToken);
         }
     }
 
@@ -377,7 +396,7 @@ public class Worker : BackgroundService
     {
         try
         {
-            var configPath = Path.Combine(_configuration.WorkingDirectory, "config.json");
+            var configPath = Path.Combine(_configuration.WorkingDirectory, _configFileName);
 
             var json = JsonSerializer.Serialize(_configuration, new JsonSerializerOptions
             {

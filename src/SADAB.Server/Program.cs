@@ -15,13 +15,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 // Configure Swagger with JWT support
+var swaggerSettings = builder.Configuration.GetSection("SwaggerSettings");
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "SADAB API",
-        Version = "v1",
-        Description = "SADAB - Software Deployment and Inventory Management System"
+        Title = swaggerSettings["Title"] ?? "SADAB API",
+        Version = swaggerSettings["Version"] ?? "v1",
+        Description = swaggerSettings["Description"] ?? "SADAB - Software Deployment and Inventory Management System"
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -57,13 +58,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 
 // Configure Identity
+var passwordSettings = builder.Configuration.GetSection("PasswordSettings");
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
-    options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireUppercase = true;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequiredLength = 8;
+    options.Password.RequireDigit = passwordSettings.GetValue<bool>("RequireDigit");
+    options.Password.RequireLowercase = passwordSettings.GetValue<bool>("RequireLowercase");
+    options.Password.RequireUppercase = passwordSettings.GetValue<bool>("RequireUppercase");
+    options.Password.RequireNonAlphanumeric = passwordSettings.GetValue<bool>("RequireNonAlphanumeric");
+    options.Password.RequiredLength = passwordSettings.GetValue<int>("RequiredLength");
     options.User.RequireUniqueEmail = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -117,7 +119,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "SADAB API v1");
+        var swaggerTitle = builder.Configuration["SwaggerSettings:Title"] ?? "SADAB API";
+        var swaggerVersion = builder.Configuration["SwaggerSettings:Version"] ?? "v1";
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", $"{swaggerTitle} {swaggerVersion}");
     });
 }
 
@@ -141,7 +145,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Create Deployments folder if it doesn't exist
-var deploymentsPath = builder.Configuration["DeploymentsPath"]
+var deploymentsPath = builder.Configuration["DeploymentSettings:DeploymentsPath"]
     ?? Path.Combine(Directory.GetCurrentDirectory(), "Deployments");
 
 if (!Directory.Exists(deploymentsPath))
@@ -163,6 +167,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Logger.LogInformation("SADAB Server started on {Environment}", app.Environment.EnvironmentName);
+var serviceName = builder.Configuration["ServiceSettings:ServiceName"] ?? "SADAB Server";
+app.Logger.LogInformation("{ServiceName} started on {Environment}", serviceName, app.Environment.EnvironmentName);
 
 app.Run();

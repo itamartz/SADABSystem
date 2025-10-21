@@ -12,4 +12,11 @@ public class InventoryData
 
     // Navigation properties
     public Agent Agent { get; set; } = null!;
+
+    public override string ToString()
+    {
+        return $"Id={Id}, AgentId={AgentId}, CollectedAt={CollectedAt:yyyy-MM-dd HH:mm:ss}, " +
+               $"HardwareInfo={(HardwareInfo.Length > 50 ? HardwareInfo.Substring(0, 50) + "..." : HardwareInfo)}, " +
+               $"InstalledSoftware={(InstalledSoftware.Length > 50 ? InstalledSoftware.Substring(0, 50) + "..." : InstalledSoftware)}";
+    }
 }

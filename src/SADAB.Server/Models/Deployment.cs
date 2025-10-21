@@ -22,4 +22,13 @@ public class Deployment
     // Navigation properties
     public ICollection<DeploymentResult> Results { get; set; } = new List<DeploymentResult>();
     public ICollection<DeploymentTarget> Targets { get; set; } = new List<DeploymentTarget>();
+
+    public override string ToString()
+    {
+        return $"Id={Id}, Name={Name}, Description={Description ?? "null"}, Type={Type}, PackageFolderName={PackageFolderName}, " +
+               $"ExecutablePath={ExecutablePath ?? "null"}, Arguments={Arguments ?? "null"}, RunAsAdmin={RunAsAdmin}, " +
+               $"TimeoutMinutes={TimeoutMinutes}, Status={Status}, CreatedAt={CreatedAt:yyyy-MM-dd HH:mm:ss}, " +
+               $"CreatedBy={CreatedBy ?? "null"}, StartedAt={StartedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}, " +
+               $"CompletedAt={CompletedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}";
+    }
 }

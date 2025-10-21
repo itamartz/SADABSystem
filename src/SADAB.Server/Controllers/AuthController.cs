@@ -14,17 +14,20 @@ public class AuthController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly ITokenService _tokenService;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         ITokenService tokenService,
+        IConfiguration configuration,
         ILogger<AuthController> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _tokenService = tokenService;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -38,13 +41,13 @@ public class AuthController : ControllerBase
             var existingUser = await _userManager.FindByNameAsync(request.Username);
             if (existingUser != null)
             {
-                return BadRequest(new { message = "Username already exists" });
+                return BadRequest(new { message = _configuration["Messages:UserNameExists"] });
             }
 
             var existingEmail = await _userManager.FindByEmailAsync(request.Email);
             if (existingEmail != null)
             {
-                return BadRequest(new { message = "Email already exists" });
+                return BadRequest(new { message = _configuration["Messages:EmailExists"] });
             }
 
             // Create new user
@@ -59,14 +62,15 @@ public class AuthController : ControllerBase
 
             if (!result.Succeeded)
             {
-                return BadRequest(new { message = "Failed to create user", errors = result.Errors });
+                return BadRequest(new { message = _configuration["Messages:UserCreationFailed"], errors = result.Errors });
             }
 
             _logger.LogInformation("User {Username} registered successfully", request.Username);
 
             // Generate JWT token
             var token = _tokenService.GenerateJwtToken(user);
-            var expiresAt = DateTime.UtcNow.AddHours(24); // Match JWT expiration
+            var jwtExpiration = _configuration.GetValue<int>("JwtSettings:ExpirationHours");
+            var expiresAt = DateTime.UtcNow.AddHours(jwtExpiration);
 
             return Ok(new AuthResponse
             {
@@ -79,7 +83,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during registration for {Username}", request.Username);
-            return StatusCode(500, new { message = "An error occurred during registration" });
+            return StatusCode(500, new { message = _configuration["Messages:RegistrationError"] });
         }
     }
 
@@ -92,14 +96,14 @@ public class AuthController : ControllerBase
             var user = await _userManager.FindByNameAsync(request.Username);
             if (user == null)
             {
-                return Unauthorized(new { message = "Invalid username or password" });
+                return Unauthorized(new { message = _configuration["Messages:InvalidCredentials"] });
             }
 
             var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
 
             if (!result.Succeeded)
             {
-                return Unauthorized(new { message = "Invalid username or password" });
+                return Unauthorized(new { message = _configuration["Messages:InvalidCredentials"] });
             }
 
             // Update last login
@@ -110,7 +114,8 @@ public class AuthController : ControllerBase
 
             // Generate JWT token
             var token = _tokenService.GenerateJwtToken(user);
-            var expiresAt = DateTime.UtcNow.AddHours(24); // Match JWT expiration
+            var jwtExpiration = _configuration.GetValue<int>("JwtSettings:ExpirationHours");
+            var expiresAt = DateTime.UtcNow.AddHours(jwtExpiration);
 
             return Ok(new AuthResponse
             {
@@ -123,7 +128,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during login for {Username}", request.Username);
-            return StatusCode(500, new { message = "An error occurred during login" });
+            return StatusCode(500, new { message = _configuration["Messages:LoginError"] });
         }
     }
 

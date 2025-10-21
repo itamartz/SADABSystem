@@ -16,15 +16,18 @@ public class AgentsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ICertificateService _certificateService;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<AgentsController> _logger;
 
     public AgentsController(
         ApplicationDbContext context,
         ICertificateService certificateService,
+        IConfiguration configuration,
         ILogger<AgentsController> logger)
     {
         _context = context;
         _certificateService = certificateService;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -107,7 +110,7 @@ public class AgentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error registering agent {MachineId}", request.MachineId);
-            return StatusCode(500, new { message = "An error occurred during registration" });
+            return StatusCode(500, new { message = _configuration["Messages:RegistrationError"] ?? "An error occurred during registration" });
         }
     }
 
@@ -138,12 +141,12 @@ public class AgentsController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Heartbeat received" });
+            return Ok(new { message = _configuration["Messages:HeartbeatReceived"] ?? "Heartbeat received" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing heartbeat");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -174,7 +177,7 @@ public class AgentsController : ControllerBase
             var isValid = await _certificateService.ValidateCertificateAsync(request.CurrentCertificateThumbprint);
             if (!isValid)
             {
-                return BadRequest(new { message = "Current certificate is invalid" });
+                return BadRequest(new { message = _configuration["Messages:CertificateInvalid"] ?? "Current certificate is invalid" });
             }
 
             // Generate new certificate
@@ -206,7 +209,7 @@ public class AgentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error refreshing certificate for agent {AgentId}", request.AgentId);
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -237,7 +240,7 @@ public class AgentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving agents");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -269,7 +272,7 @@ public class AgentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving agent {AgentId}", id);
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -294,7 +297,7 @@ public class AgentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting agent {AgentId}", id);
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 }

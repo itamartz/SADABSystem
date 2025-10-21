@@ -14,11 +14,13 @@ namespace SADAB.Server.Controllers;
 public class InventoryController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<InventoryController> _logger;
 
-    public InventoryController(ApplicationDbContext context, ILogger<InventoryController> logger)
+    public InventoryController(ApplicationDbContext context, IConfiguration configuration, ILogger<InventoryController> logger)
     {
         _context = context;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -55,12 +57,12 @@ public class InventoryController : ControllerBase
 
             _logger.LogInformation("Inventory data received from agent {AgentId}", agentId);
 
-            return Ok(new { message = "Inventory data received" });
+            return Ok(new { message = _configuration["Messages:InventoryDataReceived"] ?? "Inventory data received" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error submitting inventory data");
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -94,7 +96,7 @@ public class InventoryController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving inventory for agent {AgentId}", agentId);
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 
@@ -124,7 +126,7 @@ public class InventoryController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving inventory history for agent {AgentId}", agentId);
-            return StatusCode(500, new { message = "An error occurred" });
+            return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
         }
     }
 }
