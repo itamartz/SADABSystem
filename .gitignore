@@ -35,3 +35,63 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+## Ignore Visual Studio temporary files, build results, and cache
+src/SADAB.Server/obj/
+src/SADAB.Shared/bin/
+
+
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+Debug/
+Release/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]uild/
+
+# Visual Studio cache
+.vs/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# Package directories
+packages/
+*.nupkg
+*.snupkg
+
+# Others
+*.dbmdl
+*.bak
+*.log
+*.tlog
+*.pdb
+*.cache
+*.opendb
+*.VC.db
+*.VC.VC.opendb
+*.dll
+
+# Auto-generated files
+*.g.*
+*.i.*
+*.sbr
+
+# Publish outputs
+publish/
+Debug/
