@@ -39,8 +39,8 @@ if (!string.IsNullOrEmpty(serverUrl))
 // Register configuration as singleton
 builder.Services.AddSingleton(agentConfig);
 
-// Register HTTP client
-//builder.Services.AddHttpClient<IApiClientService, ApiClientService>();
+// Register HTTP client and API client service
+builder.Services.AddHttpClient<IApiClientService, ApiClientService>();
 
 // Register services
 builder.Services.AddSingleton<IDeploymentExecutorService, DeploymentExecutorService>();

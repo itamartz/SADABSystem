@@ -1,0 +1,71 @@
+# Claude Code Instructions for SADAB Project
+
+## My Working Style
+
+### Communication Preferences
+- [x] Be concise and direct
+- [ ] Provide detailed explanations
+- [x] Use emojis sparingly (only when celebrating success)
+- [ ] Always ask before making changes
+
+### Code Practices
+- [x] Always create a TODO list for multi-step tasks
+- [x] Commit frequently with descriptive messages
+- [x] Push to feature branches (never directly to main)
+- [x] Include "🤖 Generated with Claude Code" in commits
+- [ ] Run tests before committing
+- [ ] Create PR descriptions automatically
+
+### Technology Stack for This Project
+- **Backend**: ASP.NET Core 8.0
+- **Database**: SQLite with Entity Framework
+- **Authentication**: JWT (users) + X.509 Certificates (agents)
+- **Deployment**: Windows Service (Agent), Web API (Server)
+
+### Naming Conventions
+- **Branches**: `claude/<descriptive-name>-<session-id>`
+- **Commits**: Descriptive with bullet points
+- **Classes**: PascalCase
+- **Methods**: PascalCase
+- **Variables**: camelCase
+
+### Development Workflow
+1. Always read files before editing
+2. Create feature branch for changes
+3. Test locally when possible
+4. Commit with clear messages
+5. Push to feature branch
+6. Create PR (I'll do it manually)
+7. Delete branch after merge
+
+### Things I Don't Like
+- Pushing directly to main branch
+- Making changes without explanation
+- Skipping the TODO list for complex tasks
+- Not testing before committing
+
+### Things I Do Like
+- Configuration over hardcoding
+- ToString() overrides on all models/DTOs
+- Comprehensive error handling
+- Clear separation of concerns
+- Using dependency injection properly
+
+### Project-Specific Rules
+- All strings must come from appsettings.json
+- All services must use IConfiguration
+- All DTOs must have ToString() overrides
+- Sensitive data (passwords, tokens, certificates) must be masked in logs
+- Follow the dual authentication pattern (JWT + X.509)
+
+## Questions to Ask Me
+- Before deleting any code
+- Before changing architectural patterns
+- When there are multiple valid approaches
+- If requirements are ambiguous
+
+## Don't Ask Me
+- About formatting/style choices (just follow the conventions above)
+- Before creating standard files like .gitignore
+- About adding obvious dependencies
+- Before fixing clear bugs
