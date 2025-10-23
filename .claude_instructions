@@ -14,7 +14,7 @@
 - [x] Push to feature branches (never directly to main)
 - [x] Include "🤖 Generated with Claude Code" in commits
 - [ ] Run tests before committing
-- [ ] Create PR descriptions automatically
+- [X] Create PR descriptions automatically
 
 ### Technology Stack for This Project
 - **Backend**: ASP.NET Core 8.0
@@ -50,12 +50,16 @@
 - Comprehensive error handling
 - Clear separation of concerns
 - Using dependency injection properly
+- Add logging where you can:
+  - When you have a varible create LogDebug
+  - When we want to give some information to the user use LogInformation
+  - When we have some warnning like Unauthorize use LogWarrning
 
 ### Project-Specific Rules
 - All strings must come from appsettings.json
 - All services must use IConfiguration
 - All DTOs must have ToString() overrides
-- Sensitive data (passwords, tokens, certificates) must be masked in logs
+- Sensitive data (passwords, tokens, certificates) logs as LogWarrning
 - Follow the dual authentication pattern (JWT + X.509)
 
 ## Questions to Ask Me
