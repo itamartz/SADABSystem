@@ -112,8 +112,7 @@ public class CertificateService : ICertificateService
             _context.AgentCertificates.Add(agentCertificate);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Generated certificate for agent {AgentId} with thumbprint {Thumbprint}",
-                agentId, thumbprint);
+            _logger.LogInformation("Generated certificate for agent {AgentId} MachineName {MachineName} with thumbprint {Thumbprint}", agentId, machineName, thumbprint);
 
             return (certPem, keyPem, notAfter.UtcDateTime);
         }

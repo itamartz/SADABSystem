@@ -3,12 +3,29 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Resources;
 using SADAB.Server.Data;
 using SADAB.Server.Middleware;
 using SADAB.Server.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Clear default logging providers
+builder.Logging.ClearProviders();
+
+// Configure OpenTelemetry Logging
+builder.Logging.AddOpenTelemetry(x =>
+{
+    // configure the log exporter to the console
+    x.AddConsoleExporter();
+
+    // set service name
+    x.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("SADABAPi"));
+
+});
+
 
 // Add services to the container
 builder.Services.AddControllers();

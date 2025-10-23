@@ -22,7 +22,7 @@ public class Worker : BackgroundService
     private readonly string _privateKeyFileName;
     private readonly string _configFileName;
     private readonly int _certificateRefreshThresholdDays;
-    private readonly int _certificateRefreshCheckIntervalHours;
+    private readonly int _certificateRefreshCheckIntervalMinutes;
     private readonly int _inventoryInitialDelayMinutes;
 
     public Worker(
@@ -48,7 +48,7 @@ public class Worker : BackgroundService
         _privateKeyFileName = _appConfiguration["AgentSettings:PrivateKeyFileName"] ?? "agent.key";
         _configFileName = _appConfiguration["AgentSettings:ConfigFileName"] ?? "config.json";
         _certificateRefreshThresholdDays = _appConfiguration.GetValue<int>("AgentSettings:CertificateRefreshThresholdDays");
-        _certificateRefreshCheckIntervalHours = _appConfiguration.GetValue<int>("AgentSettings:CertificateRefreshCheckIntervalHours");
+        _certificateRefreshCheckIntervalMinutes = _appConfiguration.GetValue<int>("AgentSettings:CertificateRefreshCheckIntervalMinutes");
         _inventoryInitialDelayMinutes = 1; // Could be configurable too
     }
 
@@ -78,14 +78,17 @@ public class Worker : BackgroundService
             _logger.LogInformation(startedMessage, _configuration.AgentId);
 
             // Start background tasks
-            var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
-            var deploymentTask = DeploymentCheckLoopAsync(stoppingToken);
-            var commandTask = CommandCheckLoopAsync(stoppingToken);
-            var inventoryTask = InventoryCollectionLoopAsync(stoppingToken);
+            //var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
+
+            //var deploymentTask = DeploymentCheckLoopAsync(stoppingToken);
+            //var commandTask = CommandCheckLoopAsync(stoppingToken);
+            //var inventoryTask = InventoryCollectionLoopAsync(stoppingToken);
             var certificateTask = CertificateRefreshLoopAsync(stoppingToken);
 
             // Wait for all tasks
-            await Task.WhenAll(heartbeatTask, deploymentTask, commandTask, inventoryTask, certificateTask);
+            //await Task.WhenAll(heartbeatTask, deploymentTask, commandTask, inventoryTask, certificateTask);
+            //await Task.WhenAll(heartbeatTask, certificateTask);
+            await Task.WhenAll(certificateTask);
         }
         catch (Exception ex)
         {
@@ -294,6 +297,7 @@ public class Worker : BackgroundService
                             CurrentCertificateThumbprint = _configuration.CertificateThumbprint!
                         };
 
+                        _logger.LogDebug("Sending certificate refresh request to server {request}", request);
                         var response = await _apiClient.RefreshCertificateAsync(request);
 
                         if (response != null)
@@ -302,17 +306,31 @@ public class Worker : BackgroundService
 
                             // Save new certificate and private key
                             var certPath = Path.Combine(_configuration.WorkingDirectory, _certificateFileName);
+                            _logger.LogInformation("certPath is {certPath}", certPath);
+
                             var keyPath = Path.Combine(_configuration.WorkingDirectory, _privateKeyFileName);
+                            _logger.LogInformation("keyPath is {keyPath}", keyPath);
 
+                            _logger.LogDebug("Writing new certificate to {certPath} and key to {keyPath}", certPath, keyPath);
                             await File.WriteAllTextAsync(certPath, response.Certificate);
-                            await File.WriteAllTextAsync(keyPath, response.PrivateKey);
+                            _logger.LogDebug("Wrote new certificate to {certPath}", certPath);
 
+                            _logger.LogDebug("Writing new private key to {keyPath}", keyPath);
+                            await File.WriteAllTextAsync(keyPath, response.PrivateKey);
+                            _logger.LogDebug("Wrote new private key to {keyPath}", keyPath);
+
+                            _logger.LogDebug("Updating configuration with new certificate thumbprint");
                             _configuration.CertificateThumbprint = ExtractThumbprint(response.Certificate);
 
+                            _logger.LogDebug("Saving updated configuration");
                             await SaveConfigurationAsync();
-
+                            _logger.LogDebug("Configuration was updated {_configuration}", _configuration);
                             _logger.LogInformation(_appConfiguration["Messages:CertificateRefreshed"] ?? "Certificate refreshed successfully");
                         }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("Certificate valid for {daysUntilExpiry} more days, no refresh needed", Convert.ToInt32(daysUntilExpiry));
                     }
                 }
             }
@@ -322,7 +340,9 @@ public class Worker : BackgroundService
             }
 
             // Check based on configured interval
-            await Task.Delay(TimeSpan.FromHours(_certificateRefreshCheckIntervalHours), stoppingToken);
+            var nextCheckTime = DateTime.Now.AddMinutes(_certificateRefreshCheckIntervalMinutes);
+            _logger.LogDebug("Waiting {_certificateRefreshCheckIntervalMinutes} minutes before next certificate check. Next check at {nextCheckTime}", _certificateRefreshCheckIntervalMinutes, nextCheckTime);
+            await Task.Delay(TimeSpan.FromMinutes(_certificateRefreshCheckIntervalMinutes), stoppingToken);
         }
     }
 

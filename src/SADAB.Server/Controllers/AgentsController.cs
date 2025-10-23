@@ -122,17 +122,21 @@ public class AgentsController : ControllerBase
             var agentIdClaim = User.FindFirst("AgentId")?.Value;
             if (string.IsNullOrEmpty(agentIdClaim) || !Guid.TryParse(agentIdClaim, out var agentId))
             {
+                _logger.LogWarning("Unauthorized heartbeat attempt");
                 return Unauthorized();
             }
 
             var agent = await _context.Agents.FindAsync(agentId);
             if (agent == null)
             {
+                _logger.LogWarning("Heartbeat received for unknown agent {AgentId}", agentId);
                 return NotFound();
             }
+            _logger.LogInformation("Heartbeat received from agent {AgentId} with status {Status}", agentId, request.Status);
 
             agent.Status = request.Status;
-            agent.LastHeartbeat = DateTime.UtcNow;
+            agent.LastHeartbeat = DateTime.Now;
+            _logger.LogInformation("Updated agent {AgentId} status to {Status}", agentId, request.Status);
 
             if (!string.IsNullOrEmpty(request.IpAddress))
             {
@@ -141,6 +145,7 @@ public class AgentsController : ControllerBase
 
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("Agent {agent} heartbeat processed successfully", agent);
             return Ok(new { message = _configuration["Messages:HeartbeatReceived"] ?? "Heartbeat received" });
         }
         catch (Exception ex)
@@ -159,17 +164,20 @@ public class AgentsController : ControllerBase
             var agentIdClaim = User.FindFirst("AgentId")?.Value;
             if (string.IsNullOrEmpty(agentIdClaim) || !Guid.TryParse(agentIdClaim, out var agentId))
             {
+                _logger.LogWarning("Unauthorized certificate refresh attempt");
                 return Unauthorized();
             }
 
             if (request.AgentId != agentId)
             {
+                _logger.LogWarning("Agent {AgentId} attempted to refresh certificate for agent {RequestAgentId}", agentId, request.AgentId);
                 return Forbid();
             }
 
             var agent = await _context.Agents.FindAsync(agentId);
             if (agent == null)
             {
+                _logger.LogWarning("Certificate refresh requested for unknown agent {RequestAgentId}", request.AgentId);
                 return NotFound();
             }
 
@@ -177,10 +185,12 @@ public class AgentsController : ControllerBase
             var isValid = await _certificateService.ValidateCertificateAsync(request.CurrentCertificateThumbprint);
             if (!isValid)
             {
+                _logger.LogWarning("Invalid certificate thumbprint provided by agent {agent}", agent.MachineName);
                 return BadRequest(new { message = _configuration["Messages:CertificateInvalid"] ?? "Current certificate is invalid" });
             }
 
             // Generate new certificate
+            _logger.LogInformation("Refreshing the certificate for agent {agent}", agent.MachineName);
             var (certificate, privateKey, expiresAt) = await _certificateService.GenerateCertificateAsync(
                 agent.Id, agent.MachineName);
 
@@ -189,6 +199,7 @@ public class AgentsController : ControllerBase
                 .Where(c => c.AgentId == agent.Id)
                 .OrderByDescending(c => c.IssuedAt)
                 .FirstOrDefaultAsync();
+            _logger.LogInformation("New certificate generated for agent {agent}", agent.MachineName);
 
             if (cert != null)
             {
@@ -197,7 +208,7 @@ public class AgentsController : ControllerBase
                 await _context.SaveChangesAsync();
             }
 
-            _logger.LogInformation("Certificate refreshed for agent {AgentId}", agentId);
+            _logger.LogInformation("Certificate refreshed for agent {agent}", agent);
 
             return Ok(new CertificateRefreshResponse
             {
