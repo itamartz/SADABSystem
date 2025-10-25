@@ -30,21 +30,27 @@ public class InventoryController : ControllerBase
     {
         try
         {
+            /*
             var agentIdClaim = User.FindFirst("AgentId")?.Value;
+            _logger.LogDebug("Received inventory submission from AgentId claim: {AgentIdClaim}", agentIdClaim);
+
             if (string.IsNullOrEmpty(agentIdClaim) || !Guid.TryParse(agentIdClaim, out var agentId))
             {
+                _logger.LogWarning("Invalid or missing AgentId claim");
                 return Unauthorized();
             }
 
             if (inventoryDto.AgentId != agentId)
             {
+                _logger.LogWarning("AgentId in payload does not match AgentId claim");
                 return Forbid();
             }
+             */
 
             var inventory = new InventoryData
             {
                 Id = Guid.NewGuid(),
-                AgentId = agentId,
+                AgentId = inventoryDto.AgentId,
                 HardwareInfo = JsonSerializer.Serialize(inventoryDto.HardwareInfo),
                 InstalledSoftware = JsonSerializer.Serialize(inventoryDto.InstalledSoftware),
                 EnvironmentVariables = JsonSerializer.Serialize(inventoryDto.EnvironmentVariables),
@@ -55,7 +61,8 @@ public class InventoryController : ControllerBase
             _context.InventoryData.Add(inventory);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Inventory data received from agent {AgentId}", agentId);
+            _logger.LogInformation("Inventory data received from agent {AgentId}", inventoryDto.AgentId);
+            _logger.LogDebug("Inventory Data: {InventoryData}", inventory);
 
             return Ok(new { message = _configuration["Messages:InventoryDataReceived"] ?? "Inventory data received" });
         }

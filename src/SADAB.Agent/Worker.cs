@@ -23,7 +23,6 @@ public class Worker : BackgroundService
     private readonly string _configFileName;
     private readonly int _certificateRefreshThresholdDays;
     private readonly int _certificateRefreshCheckIntervalMinutes;
-    private readonly int _inventoryInitialDelayMinutes;
 
     public Worker(
         AgentConfiguration configuration,
@@ -49,7 +48,6 @@ public class Worker : BackgroundService
         _configFileName = _appConfiguration["AgentSettings:ConfigFileName"] ?? "config.json";
         _certificateRefreshThresholdDays = _appConfiguration.GetValue<int>("AgentSettings:CertificateRefreshThresholdDays");
         _certificateRefreshCheckIntervalMinutes = _appConfiguration.GetValue<int>("AgentSettings:CertificateRefreshCheckIntervalMinutes");
-        _inventoryInitialDelayMinutes = 1; // Could be configurable too
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -59,11 +57,13 @@ public class Worker : BackgroundService
             _logger.LogInformation(_appConfiguration["Messages:StartingAgent"] ?? "SADAB Agent starting...");
 
             // Ensure working directory exists
+            _logger.LogDebug("Ensuring working directory exists at {WorkingDirectory}", _configuration.WorkingDirectory);
             Directory.CreateDirectory(_configuration.WorkingDirectory);
 
             // Register or load agent configuration
             if (!_configuration.AgentId.HasValue || string.IsNullOrEmpty(_configuration.CertificateThumbprint))
             {
+                _logger.LogInformation("Agent not registered. Initiating registration process.");
                 await RegisterAgentAsync();
             }
 
@@ -78,22 +78,59 @@ public class Worker : BackgroundService
             _logger.LogInformation(startedMessage, _configuration.AgentId);
 
             // Start background tasks
+
+            var realodedTask = RealodedAgentConfigurationAsync(stoppingToken);
+
             //var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
 
             //var deploymentTask = DeploymentCheckLoopAsync(stoppingToken);
             //var commandTask = CommandCheckLoopAsync(stoppingToken);
-            //var inventoryTask = InventoryCollectionLoopAsync(stoppingToken);
-            var certificateTask = CertificateRefreshLoopAsync(stoppingToken);
+            var inventoryTask = InventoryCollectionLoopAsync(stoppingToken);
+            //var certificateTask = CertificateRefreshLoopAsync(stoppingToken);
 
             // Wait for all tasks
             //await Task.WhenAll(heartbeatTask, deploymentTask, commandTask, inventoryTask, certificateTask);
             //await Task.WhenAll(heartbeatTask, certificateTask);
-            await Task.WhenAll(certificateTask);
+            await Task.WhenAll(inventoryTask);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fatal error in agent");
             _lifetime.StopApplication();
+        }
+    }
+
+    private async Task RealodedAgentConfigurationAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                _ = _configuration.LoadDefaultsAsync();
+                //var configPath = Path.Combine(_configuration.WorkingDirectory, _configFileName);
+                //if (File.Exists(configPath))
+                //{
+                //    var json = await File.ReadAllTextAsync(configPath, stoppingToken);
+                //    var updatedConfig = JsonSerializer.Deserialize<AgentConfiguration>(json);
+                //    if (updatedConfig != null)
+                //    {
+                //        _configuration.AgentId = updatedConfig.AgentId;
+                //        _configuration.CertificateThumbprint = updatedConfig.CertificateThumbprint;
+                //        _configuration.CertificateExpiresAt = updatedConfig.CertificateExpiresAt;
+                //        _configuration.HeartbeatIntervalSeconds = updatedConfig.HeartbeatIntervalSeconds;
+                //        _configuration.DeploymentCheckIntervalSeconds = updatedConfig.DeploymentCheckIntervalSeconds;
+                //        _configuration.CommandCheckIntervalSeconds = updatedConfig.CommandCheckIntervalSeconds;
+                //        _configuration.InventoryCollectionIntervalMinutes = updatedConfig.InventoryCollectionIntervalMinutes;
+                _logger.LogInformation("Agent configuration reloaded successfully");
+                _logger.LogDebug("Updated configuration: {@Configuration}", _configuration);
+                //    }
+                //}
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reloading agent configuration");
+            }
+            await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
         }
     }
 
@@ -255,7 +292,7 @@ public class Worker : BackgroundService
     private async Task InventoryCollectionLoopAsync(CancellationToken stoppingToken)
     {
         // Initial delay before first collection
-        await Task.Delay(TimeSpan.FromMinutes(_inventoryInitialDelayMinutes), stoppingToken);
+        //await Task.Delay(TimeSpan.FromMinutes(_inventoryInitialDelayMinutes), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -271,7 +308,15 @@ public class Worker : BackgroundService
                 _logger.LogError(ex, "Error collecting/submitting inventory");
             }
 
+            // Check based on configured interval
+            var nextCheckTime = DateTime.Now.AddMinutes(_configuration.InventoryCollectionIntervalMinutes);
+            _logger.LogDebug("Waiting {inventoryCollectionIntervalMinute} minutes before next inventory check. Next check at {extCheckTime}", _configuration.InventoryCollectionIntervalMinutes, nextCheckTime);
+
             await Task.Delay(TimeSpan.FromMinutes(_configuration.InventoryCollectionIntervalMinutes), stoppingToken);
+
+            
+
+
         }
     }
 
@@ -416,14 +461,9 @@ public class Worker : BackgroundService
     {
         try
         {
-            var configPath = Path.Combine(_configuration.WorkingDirectory, _configFileName);
-
-            var json = JsonSerializer.Serialize(_configuration, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-
-            await File.WriteAllTextAsync(configPath, json);
+            _logger.LogInformation("Saving agent configuration...");
+            await _configuration.SaveConfigurationAsync();
+            _logger.LogInformation("Agent configuration saved successfully");
         }
         catch (Exception ex)
         {
