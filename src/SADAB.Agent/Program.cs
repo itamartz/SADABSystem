@@ -6,9 +6,27 @@ using System.Text.Json;
 var builder = Host.CreateApplicationBuilder(args);
 
 
+// Load agent configuration
+//var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"SADAB", "Agent", "config.json");
 var agentConfig = new AgentConfiguration();
-Task task = agentConfig.LoadDefaultsAsync();
+var configPath = Path.Combine(agentConfig.WorkingDirectory, "config.json");
 
+if (File.Exists(configPath))
+{
+    try
+    {
+        var json = await File.ReadAllTextAsync(configPath);
+        var loadedConfig = JsonSerializer.Deserialize<AgentConfiguration>(json);
+        if (loadedConfig != null)
+        {
+            agentConfig = loadedConfig;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error loading configuration: {ex.Message}");
+    }
+}
 
 // Override with appsettings values if present
 var serverUrl = builder.Configuration["ServerUrl"];

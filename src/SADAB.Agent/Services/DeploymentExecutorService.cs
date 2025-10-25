@@ -264,17 +264,14 @@ public class DeploymentExecutorService : IDeploymentExecutorService
         return await RunProcessAsync(deployment, processInfo, startTime);
     }
 
-    private async Task<DeploymentResultDto> CopyFilesAsync(
-        DeploymentTaskDto deployment, string deploymentPath, DateTime startTime)
+    private async Task<DeploymentResultDto> CopyFilesAsync(DeploymentTaskDto deployment, string deploymentPath, DateTime startTime)
     {
         try
         {
             var programDataFolder = _appConfiguration["PathSettings:ProgramDataFolder"] ?? "SADAB";
             var deploymentsSubFolder = _appConfiguration["PathSettings:DeploymentsSubFolder"] ?? "Deployments";
 
-            var targetPath = deployment.Arguments ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-                programDataFolder, deploymentsSubFolder, deployment.Name);
+            var targetPath = deployment.Arguments ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), programDataFolder, deploymentsSubFolder, deployment.Name);
 
             Directory.CreateDirectory(targetPath);
 
@@ -293,6 +290,8 @@ public class DeploymentExecutorService : IDeploymentExecutorService
             }
 
             var copiedMessage = _appConfiguration["Messages:FilesCopiedTo"] ?? "Files copied to {0}";
+            await Task.Delay(TimeSpan.FromSeconds(1));
+
             return new DeploymentResultDto
             {
                 DeploymentId = deployment.DeploymentId,
@@ -316,6 +315,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 ErrorMessage = ex.Message
             };
         }
+        
     }
 
     private async Task<DeploymentResultDto> RunProcessAsync(

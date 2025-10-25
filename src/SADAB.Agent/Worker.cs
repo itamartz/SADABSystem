@@ -106,25 +106,28 @@ public class Worker : BackgroundService
         {
             try
             {
-                _ = _configuration.LoadDefaultsAsync();
-                //var configPath = Path.Combine(_configuration.WorkingDirectory, _configFileName);
-                //if (File.Exists(configPath))
-                //{
-                //    var json = await File.ReadAllTextAsync(configPath, stoppingToken);
-                //    var updatedConfig = JsonSerializer.Deserialize<AgentConfiguration>(json);
-                //    if (updatedConfig != null)
-                //    {
-                //        _configuration.AgentId = updatedConfig.AgentId;
-                //        _configuration.CertificateThumbprint = updatedConfig.CertificateThumbprint;
-                //        _configuration.CertificateExpiresAt = updatedConfig.CertificateExpiresAt;
-                //        _configuration.HeartbeatIntervalSeconds = updatedConfig.HeartbeatIntervalSeconds;
-                //        _configuration.DeploymentCheckIntervalSeconds = updatedConfig.DeploymentCheckIntervalSeconds;
-                //        _configuration.CommandCheckIntervalSeconds = updatedConfig.CommandCheckIntervalSeconds;
-                //        _configuration.InventoryCollectionIntervalMinutes = updatedConfig.InventoryCollectionIntervalMinutes;
-                _logger.LogInformation("Agent configuration reloaded successfully");
-                _logger.LogDebug("Updated configuration: {@Configuration}", _configuration);
-                //    }
-                //}
+                var configPath = Path.Combine(_configuration.WorkingDirectory, _configFileName);
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath, stoppingToken);
+                    var updatedConfig = JsonSerializer.Deserialize<AgentConfiguration>(json);
+                    if (updatedConfig != null)
+                    {
+                        _configuration.AgentId = updatedConfig.AgentId;
+                        _configuration.CertificateThumbprint = updatedConfig.CertificateThumbprint;
+                        _configuration.CertificateExpiresAt = updatedConfig.CertificateExpiresAt;
+                        _configuration.HeartbeatIntervalSeconds = updatedConfig.HeartbeatIntervalSeconds;
+                        _configuration.DeploymentCheckIntervalSeconds = updatedConfig.DeploymentCheckIntervalSeconds;
+                        _configuration.CommandCheckIntervalSeconds = updatedConfig.CommandCheckIntervalSeconds;
+                        _configuration.InventoryCollectionIntervalMinutes = updatedConfig.InventoryCollectionIntervalMinutes;
+                        _logger.LogInformation("Agent configuration reloaded successfully");
+                        _logger.LogDebug("Updated configuration: {@Configuration}", _configuration);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Configuration file not found at {ConfigPath}", configPath);
+                }
             }
             catch (Exception ex)
             {
@@ -263,7 +266,9 @@ public class Worker : BackgroundService
         {
             try
             {
+                _logger.LogDebug("Checking for pending commands...");
                 var commands = await _apiClient.GetPendingCommandsAsync();
+                _logger.LogDebug("Found {CommandCount} pending commands", commands.Count);
 
                 foreach (var command in commands)
                 {
@@ -271,7 +276,9 @@ public class Worker : BackgroundService
                     {
                         try
                         {
+                            _logger.LogDebug("About to executing command {CommandId}: {Command} {Arguments}", command.Id, command.Command, command.Arguments);
                             await _commandExecutor.ExecuteCommandAsync(command);
+                            _logger.LogDebug("Finished executing command {CommandId}", command.Id);
                         }
                         catch (Exception ex)
                         {
@@ -284,6 +291,10 @@ public class Worker : BackgroundService
             {
                 _logger.LogError(ex, "Error checking for commands");
             }
+
+            var nextCheckTime = DateTime.Now.AddSeconds(_configuration.CommandCheckIntervalSeconds);
+            _logger.LogDebug("Waiting {CommandCheckIntervalSeconds} seconds before next command check. Next check at {nextCheckTime}", _configuration.CommandCheckIntervalSeconds, nextCheckTime);
+            _logger.LogInformation("Command task finished");
 
             await Task.Delay(TimeSpan.FromSeconds(_configuration.CommandCheckIntervalSeconds), stoppingToken);
         }
@@ -314,7 +325,7 @@ public class Worker : BackgroundService
 
             await Task.Delay(TimeSpan.FromMinutes(_configuration.InventoryCollectionIntervalMinutes), stoppingToken);
 
-            
+
 
 
         }

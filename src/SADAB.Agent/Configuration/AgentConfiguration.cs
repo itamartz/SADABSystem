@@ -30,7 +30,7 @@ public class AgentConfiguration
                $"WorkingDirectory={WorkingDirectory}";
     }
 
-    public async Task LoadDefaultsAsync()
+    public async Task LoadDefaultsAsync1()
     {
         // Load agent configuration
         //var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"SADAB", "Agent", "config.json");
