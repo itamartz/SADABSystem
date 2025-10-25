@@ -81,7 +81,7 @@ public class Worker : BackgroundService
 
             var realodedTask = RealodedAgentConfigurationAsync(stoppingToken);
 
-            //var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
+            var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
 
             //var deploymentTask = DeploymentCheckLoopAsync(stoppingToken);
             //var commandTask = CommandCheckLoopAsync(stoppingToken);
@@ -91,7 +91,7 @@ public class Worker : BackgroundService
             // Wait for all tasks
             //await Task.WhenAll(heartbeatTask, deploymentTask, commandTask, inventoryTask, certificateTask);
             //await Task.WhenAll(heartbeatTask, certificateTask);
-            await Task.WhenAll(inventoryTask);
+            await Task.WhenAll(inventoryTask, heartbeatTask);
         }
         catch (Exception ex)
         {
@@ -204,6 +204,7 @@ public class Worker : BackgroundService
         {
             try
             {
+                _logger.LogDebug("about to sending heartbeat to server...");
                 var request = new AgentHeartbeatRequest
                 {
                     Status = AgentStatus.Online,
@@ -216,14 +217,19 @@ public class Worker : BackgroundService
                     }
                 };
 
+                _logger.LogDebug("Heartbeat request: {request}", request);
                 await _apiClient.SendHeartbeatAsync(request);
                 _logger.LogDebug(_appConfiguration["Messages:HeartbeatSent"] ?? "Heartbeat sent");
+                _logger.LogInformation("Heartbeat task finished");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending heartbeat");
             }
 
+            var nextCheckTime = DateTime.Now.AddSeconds(_configuration.CommandCheckIntervalSeconds);
+            _logger.LogDebug("Waiting {HeartbeatIntervalSeconds} seconds before next heartbeat, Next check at {nextCheckTime}", _configuration.HeartbeatIntervalSeconds, nextCheckTime);
+            _logger.LogInformation("Heartbeat task finished");
             await Task.Delay(TimeSpan.FromSeconds(_configuration.HeartbeatIntervalSeconds), stoppingToken);
         }
     }
