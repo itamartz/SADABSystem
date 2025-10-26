@@ -47,23 +47,42 @@ public class InventoryController : ControllerBase
             }
              */
 
-            var inventory = new InventoryData
+            var inventory = await _context.InventoryData.FirstOrDefaultAsync(e => e.AgentId == inventoryDto.AgentId);
+            if (inventory != null)
             {
-                Id = Guid.NewGuid(),
-                AgentId = inventoryDto.AgentId,
-                HardwareInfo = JsonSerializer.Serialize(inventoryDto.HardwareInfo),
-                InstalledSoftware = JsonSerializer.Serialize(inventoryDto.InstalledSoftware),
-                EnvironmentVariables = JsonSerializer.Serialize(inventoryDto.EnvironmentVariables),
-                RunningServices = JsonSerializer.Serialize(inventoryDto.RunningServices),
-                CollectedAt = DateTime.UtcNow
-            };
+                _logger.LogDebug("Existing inventory record found for AgentId {AgentId}, updating it", inventoryDto.AgentId);
+                inventory.HardwareInfo = JsonSerializer.Serialize(inventoryDto.HardwareInfo);
+                inventory.InstalledSoftware = JsonSerializer.Serialize(inventoryDto.InstalledSoftware);
+                inventory.EnvironmentVariables = JsonSerializer.Serialize(inventoryDto.EnvironmentVariables);
+                inventory.RunningServices = JsonSerializer.Serialize(inventoryDto.RunningServices);
+                inventory.CollectedAt = DateTime.UtcNow;
 
-            _context.InventoryData.Add(inventory);
-            await _context.SaveChangesAsync();
+                _logger.LogInformation("Updating existing inventory record for AgentId {AgentId}", inventoryDto.AgentId);
+                _context.InventoryData.Update(inventory);
+                await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Inventory data received from agent {AgentId}", inventoryDto.AgentId);
+                _logger.LogDebug("Inventory Data: {InventoryData}", inventory);
+                return Ok(new { message = _configuration["Messages:InventoryDataUpdated"] ?? "Inventory data updated" });
+            }
+            else
+            {
+                inventory = new InventoryData
+                {
+                    Id = Guid.NewGuid(),
+                    AgentId = inventoryDto.AgentId,
+                    HardwareInfo = JsonSerializer.Serialize(inventoryDto.HardwareInfo),
+                    InstalledSoftware = JsonSerializer.Serialize(inventoryDto.InstalledSoftware),
+                    EnvironmentVariables = JsonSerializer.Serialize(inventoryDto.EnvironmentVariables),
+                    RunningServices = JsonSerializer.Serialize(inventoryDto.RunningServices),
+                    CollectedAt = DateTime.UtcNow
+                };
+
+                _context.InventoryData.Add(inventory);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Inventory data received from agent {AgentId}", inventoryDto.AgentId);
+            }
+
             _logger.LogDebug("Inventory Data: {InventoryData}", inventory);
-
             return Ok(new { message = _configuration["Messages:InventoryDataReceived"] ?? "Inventory data received" });
         }
         catch (Exception ex)

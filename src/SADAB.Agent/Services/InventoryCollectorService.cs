@@ -1,9 +1,10 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Win32;
 using SADAB.Agent.Configuration;
 using SADAB.Shared.DTOs;
+using System.Dynamic;
 using System.Management;
 using System.Runtime.Versioning;
-using Microsoft.Win32;
-using Microsoft.Extensions.Configuration;
 
 namespace SADAB.Agent.Services;
 
@@ -46,9 +47,16 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
         {
             try
             {
+                _logger.LogDebug(_appConfiguration["Messages:CollectingHardwareInfo"] ?? "Collecting hardware information");
                 CollectHardwareInfo(inventory);
+
+                _logger.LogDebug(_appConfiguration["Messages:CollectingInstalledSoftware"] ?? "Collecting installed software");
                 CollectInstalledSoftware(inventory);
+
+                _logger.LogDebug(_appConfiguration["Messages:CollectingEnvironmentVariables"] ?? "Collecting environment variables");
                 CollectEnvironmentVariables(inventory);
+
+                _logger.LogDebug(_appConfiguration["Messages:CollectingRunningServices"] ?? "Collecting running services");
                 CollectRunningServices(inventory);
             }
             catch (Exception ex)
@@ -62,25 +70,40 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
 
     private void CollectHardwareInfo(InventoryDataDto inventory)
     {
+
         try
         {
+            var processorsList = new List<Dictionary<string, string>>();
+
             // Processor
             using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_Processor"))
             {
                 foreach (ManagementObject obj in searcher.Get())
                 {
-                    inventory.HardwareInfo["Processor"] = obj["Name"]?.ToString() ?? _unknownValue;
-                    break;
+                    var processor = new Dictionary<string, string>
+                    {
+                        ["Name"] = obj["Name"]?.ToString() ?? _unknownValue,
+                        ["Manufacturer"] = obj["Manufacturer"]?.ToString() ?? _unknownValue,
+                        ["NumberOfCores"] = obj["NumberOfCores"]?.ToString() ?? _unknownValue,
+                        ["NumberOfEnabledCore"] = obj["NumberOfEnabledCore"]?.ToString() ?? _unknownValue,
+                        ["NumberOfLogicalProcessors"] = obj["NumberOfLogicalProcessors"]?.ToString() ?? _unknownValue
+                    };
+
+                    processorsList.Add(processor);
                 }
+                // Add as array to HardwareInfo
+                inventory.HardwareInfo["Processors"] = processorsList.ToArray();
             }
 
             // Memory
             using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_ComputerSystem"))
             {
+
                 foreach (ManagementObject obj in searcher.Get())
                 {
                     var totalMemory = Convert.ToInt64(obj["TotalPhysicalMemory"]);
-                    inventory.HardwareInfo["TotalMemoryMB"] = totalMemory / 1024 / 1024;
+                    //inventory.HardwareInfo["TotalMemoryMB"] = totalMemory / 1024 / 1024;
+
                     break;
                 }
             }

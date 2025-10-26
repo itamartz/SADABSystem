@@ -1,10 +1,11 @@
+using Microsoft.Extensions.Configuration;
 using SADAB.Agent.Configuration;
 using SADAB.Agent.Services;
 using SADAB.Shared.DTOs;
 using SADAB.Shared.Enums;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 
 namespace SADAB.Agent;
 
@@ -441,9 +442,22 @@ public class Worker : BackgroundService
         try
         {
             var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
-            var ip = host.AddressList.FirstOrDefault(addr =>
-                addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-            return ip?.ToString() ?? "Unknown";
+            //var ip = host.AddressList.FirstOrDefault(addr =>
+            //    addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+
+            var ip = host.AddressList
+            .Where(addr => addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            .Where(addr =>
+            {
+                var bytes = addr.GetAddressBytes();
+                // APIPA range is 169.254.0.0 to 169.254.255.255
+                return !(bytes[0] == 169 && bytes[1] == 254);
+            })
+            .Select(addr => addr.ToString());
+
+            var ipString = string.Join(",", ip);
+
+            return ipString ?? "Unknown";
         }
         catch
         {
