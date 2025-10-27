@@ -56,6 +56,7 @@ public class DeploymentsController : ControllerBase
                 Arguments = request.Arguments,
                 RunAsAdmin = request.RunAsAdmin,
                 TimeoutMinutes = request.TimeoutMinutes,
+                SuccessExitCodes = request.SuccessExitCodes,
                 Status = DeploymentStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = userName
@@ -248,7 +249,8 @@ public class DeploymentsController : ControllerBase
                     ExecutablePath = result.Deployment.ExecutablePath,
                     Arguments = result.Deployment.Arguments,
                     RunAsAdmin = result.Deployment.RunAsAdmin,
-                    TimeoutMinutes = result.Deployment.TimeoutMinutes
+                    TimeoutMinutes = result.Deployment.TimeoutMinutes,
+                    SuccessExitCodes = result.Deployment.SuccessExitCodes
                 });
 
                 // Update status to InProgress

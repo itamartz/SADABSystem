@@ -52,6 +52,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.CreatedAt);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("datetime('now')");
+
+            // Ignore the computed property, only map the JSON column
+            entity.Ignore(e => e.SuccessExitCodes);
         });
 
         // DeploymentTarget configuration

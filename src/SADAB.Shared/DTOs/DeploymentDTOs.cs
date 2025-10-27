@@ -14,11 +14,18 @@ public class CreateDeploymentRequest
     public bool RunAsAdmin { get; set; } = true;
     public int TimeoutMinutes { get; set; } = 30;
 
+    /// <summary>
+    /// List of exit codes that should be considered successful.
+    /// Default: [0]. Common codes: 0 (success), 3010 (success with reboot required), 1641 (reboot initiated)
+    /// </summary>
+    public List<int> SuccessExitCodes { get; set; } = new() { 0 };
+
     public override string ToString()
     {
         return $"Name={Name}, Description={Description ?? "null"}, Type={Type}, PackageFolderName={PackageFolderName}, " +
                $"ExecutablePath={ExecutablePath ?? "null"}, Arguments={Arguments ?? "null"}, " +
-               $"TargetAgentIds={TargetAgentIds?.Count ?? 0} agents, RunAsAdmin={RunAsAdmin}, TimeoutMinutes={TimeoutMinutes}";
+               $"TargetAgentIds={TargetAgentIds?.Count ?? 0} agents, RunAsAdmin={RunAsAdmin}, TimeoutMinutes={TimeoutMinutes}, " +
+               $"SuccessExitCodes=[{string.Join(", ", SuccessExitCodes)}]";
     }
 }
 
@@ -79,10 +86,17 @@ public class DeploymentTaskDto
     public bool RunAsAdmin { get; set; }
     public int TimeoutMinutes { get; set; }
 
+    /// <summary>
+    /// List of exit codes that should be considered successful.
+    /// Default: [0]. Common codes: 0 (success), 3010 (success with reboot required), 1641 (reboot initiated)
+    /// </summary>
+    public List<int> SuccessExitCodes { get; set; } = new() { 0 };
+
     public override string ToString()
     {
         return $"DeploymentId={DeploymentId}, Name={Name}, Type={Type}, Files={Files.Count} files, " +
                $"ExecutablePath={ExecutablePath ?? "null"}, Arguments={Arguments ?? "null"}, " +
-               $"RunAsAdmin={RunAsAdmin}, TimeoutMinutes={TimeoutMinutes}";
+               $"RunAsAdmin={RunAsAdmin}, TimeoutMinutes={TimeoutMinutes}, " +
+               $"SuccessExitCodes=[{string.Join(", ", SuccessExitCodes)}]";
     }
 }

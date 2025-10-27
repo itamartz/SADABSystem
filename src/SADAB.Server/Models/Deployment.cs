@@ -1,4 +1,5 @@
 using SADAB.Shared.Enums;
+using System.Text.Json;
 
 namespace SADAB.Server.Models;
 
@@ -18,6 +19,23 @@ public class Deployment
     public string? CreatedBy { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+
+    /// <summary>
+    /// JSON string containing list of exit codes that should be considered successful.
+    /// Default: "[0]". Common codes: 0 (success), 3010 (success with reboot required), 1641 (reboot initiated)
+    /// </summary>
+    public string SuccessExitCodesJson { get; set; } = "[0]";
+
+    /// <summary>
+    /// List of exit codes that should be considered successful. Not mapped to database.
+    /// </summary>
+    public List<int> SuccessExitCodes
+    {
+        get => string.IsNullOrWhiteSpace(SuccessExitCodesJson)
+            ? new List<int> { 0 }
+            : JsonSerializer.Deserialize<List<int>>(SuccessExitCodesJson) ?? new List<int> { 0 };
+        set => SuccessExitCodesJson = JsonSerializer.Serialize(value);
+    }
 
     // Navigation properties
     public ICollection<DeploymentResult> Results { get; set; } = new List<DeploymentResult>();

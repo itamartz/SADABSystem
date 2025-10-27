@@ -360,7 +360,15 @@ public class DeploymentExecutorService : IDeploymentExecutorService
             }
 
             var exitCode = process.ExitCode;
-            var status = exitCode == 0 ? DeploymentStatus.Completed : DeploymentStatus.Failed;
+
+            // Check if exit code is in the list of success codes
+            var isSuccess = deployment.SuccessExitCodes?.Contains(exitCode) ?? (exitCode == 0);
+            var status = isSuccess ? DeploymentStatus.Completed : DeploymentStatus.Failed;
+
+            _logger.LogDebug("Process exited with code {ExitCode}. Success codes: [{SuccessCodes}]. Status: {Status}",
+                exitCode,
+                deployment.SuccessExitCodes != null ? string.Join(", ", deployment.SuccessExitCodes) : "0",
+                status);
 
             return new DeploymentResultDto
             {
