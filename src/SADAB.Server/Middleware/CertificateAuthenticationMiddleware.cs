@@ -38,19 +38,23 @@ public class CertificateAuthenticationMiddleware
 
     public async Task InvokeAsync(HttpContext context, ICertificateService certificateService)
     {
-        // Only apply to agent endpoints
-        if (!context.Request.Path.StartsWithSegments(_agentEndpointPath))
+        // Skip authentication for registration endpoint
+        if (context.Request.Path.StartsWithSegments(_registerEndpointPath))
         {
+            _logger.LogDebug("Skipping authentication for registration endpoint: {Path}", context.Request.Path);
             await _next(context);
             return;
         }
 
-        // Skip authentication for registration endpoint
-        if (context.Request.Path.StartsWithSegments(_registerEndpointPath))
+        // Apply certificate authentication to ALL /api/* endpoints (secure by default)
+        if (!context.Request.Path.StartsWithSegments("/api"))
         {
+            _logger.LogDebug("Path {Path} is not an API endpoint, passing through", context.Request.Path);
             await _next(context);
             return;
         }
+
+        _logger.LogDebug("Processing certificate authentication for API path: {Path}", context.Request.Path);
 
         var clientCertificate = context.Connection.ClientCertificate;
 
