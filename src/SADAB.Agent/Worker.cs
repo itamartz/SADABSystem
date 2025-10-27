@@ -19,7 +19,7 @@ public class Worker : BackgroundService
     private readonly IDeploymentExecutorService _deploymentExecutor;
     private readonly ICommandExecutorService _commandExecutor;
     private readonly IInventoryCollectorService _inventoryCollector;
-    
+
     private readonly ILogger<Worker> _logger;
     private ILogger _inventoryLogger;
 
@@ -237,6 +237,7 @@ public class Worker : BackgroundService
                 _logger.LogDebug("Heartbeat request: {request}", request);
                 await _apiClient.SendHeartbeatAsync(request);
                 _logger.LogDebug(_appConfiguration["Messages:HeartbeatSent"] ?? "Heartbeat sent");
+                _logger.LogInformation("Heartbeat task sent");
                 _logger.LogInformation("Heartbeat task finished");
             }
             catch (Exception ex)
@@ -246,7 +247,6 @@ public class Worker : BackgroundService
 
             var nextCheckTime = DateTime.Now.AddSeconds(_configuration.CommandCheckIntervalSeconds);
             _logger.LogDebug("Waiting {HeartbeatIntervalSeconds} seconds before next heartbeat, Next check at {nextCheckTime}", _configuration.HeartbeatIntervalSeconds, nextCheckTime);
-            _logger.LogInformation("Heartbeat task sent");
             await Task.Delay(TimeSpan.FromSeconds(_configuration.HeartbeatIntervalSeconds), stoppingToken);
         }
     }
@@ -336,10 +336,16 @@ public class Worker : BackgroundService
                 var inventory = await _inventoryCollector.CollectInventoryAsync();
 
                 _inventoryLogger.LogDebug("Collected inventory data: {inventory}", inventory);
-                
+
                 _inventoryLogger.LogInformation("Submitting inventory data to server...");
-                await _apiClient.SubmitInventoryAsync(inventory);
-                _inventoryLogger.LogInformation(_appConfiguration["Messages:InventorySubmitted"] ?? "Inventory data submitted");
+                if (await _apiClient.SubmitInventoryAsync(inventory))
+                {
+                    _inventoryLogger.LogInformation(_appConfiguration["Messages:InventorySubmitted"] ?? "Inventory data submitted successfully");
+                }
+                else
+                {
+                    _inventoryLogger.LogError("Failed to submit inventory data");
+                }
             }
             catch (Exception ex)
             {
