@@ -183,10 +183,10 @@ app.UseHttpsRedirection();
 
 app.UseCors();
 
-app.UseAuthentication();
-
-// Custom certificate authentication middleware
+// Custom certificate authentication middleware (must run BEFORE UseAuthentication)
 app.UseCertificateAuthentication();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 
