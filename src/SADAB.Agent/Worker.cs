@@ -283,6 +283,11 @@ public class Worker : BackgroundService
                 _logger.LogError(ex, "Error checking for deployments");
             }
 
+            // Check based on configured interval
+            var nextCheckTime = DateTime.Now.AddSeconds(_configuration.DeploymentCheckIntervalSeconds);
+            _inventoryLogger.LogDebug("Waiting {inventoryCollectionIntervalMinute} seconds before next deployment check. Next check at {nextCheckTime}", _configuration.DeploymentCheckIntervalSeconds, nextCheckTime);
+
+
             await Task.Delay(TimeSpan.FromSeconds(_configuration.DeploymentCheckIntervalSeconds), stoppingToken);
         }
     }
@@ -358,7 +363,7 @@ public class Worker : BackgroundService
 
             // Check based on configured interval
             var nextCheckTime = DateTime.Now.AddMinutes(_configuration.InventoryCollectionIntervalMinutes);
-            _inventoryLogger.LogDebug("Waiting {inventoryCollectionIntervalMinute} minutes before next inventory check. Next check at {extCheckTime}", _configuration.InventoryCollectionIntervalMinutes, nextCheckTime);
+            _inventoryLogger.LogDebug("Waiting {inventoryCollectionIntervalMinute} minutes before next inventory check. Next check at {nextCheckTime}", _configuration.InventoryCollectionIntervalMinutes, nextCheckTime);
 
             await Task.Delay(TimeSpan.FromMinutes(_configuration.InventoryCollectionIntervalMinutes), stoppingToken);
 

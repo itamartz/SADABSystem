@@ -11,7 +11,7 @@ public class CertificateAuthenticationMiddleware
     private readonly IConfiguration _configuration;
     private readonly ILogger<CertificateAuthenticationMiddleware> _logger;
     private readonly string _certificateHeaderName;
-    private readonly string _agentEndpointPath;
+    //private readonly string _agentEndpointPath;
     private readonly string _registerEndpointPath;
     private readonly string _agentIdClaimType;
     private readonly string _certificateThumbprintClaimType;
@@ -28,7 +28,7 @@ public class CertificateAuthenticationMiddleware
         _logger = logger;
 
         _certificateHeaderName = _configuration["ServiceSettings:CertificateHeaderName"] ?? "X-Client-Certificate-Thumbprint";
-        _agentEndpointPath = "/api/agents";
+        //_agentEndpointPath = "/api/agents";
         _registerEndpointPath = "/api/agents/register";
         _agentIdClaimType = "AgentId";
         _certificateThumbprintClaimType = "CertificateThumbprint";
