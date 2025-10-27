@@ -352,9 +352,6 @@ public class Worker : BackgroundService
 
             await Task.Delay(TimeSpan.FromMinutes(_configuration.InventoryCollectionIntervalMinutes), stoppingToken);
 
-
-
-
         }
     }
 
