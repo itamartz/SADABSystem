@@ -125,6 +125,7 @@ public class CertificateService : ICertificateService
 
     public async Task<bool> ValidateCertificateAsync(string thumbprint)
     {
+        _logger.LogDebug("Validating certificate with thumbprint {Thumbprint}", thumbprint);
         var cert = await _context.AgentCertificates
             .FirstOrDefaultAsync(c => c.Thumbprint == thumbprint);
 
@@ -145,7 +146,8 @@ public class CertificateService : ICertificateService
             _logger.LogWarning("Certificate {Thumbprint} is expired", thumbprint);
             return false;
         }
-
+        _logger.LogDebug("Certificate {Thumbprint} is valid", thumbprint);
+        _logger.LogDebug("Certificate details: {@cert}", cert);
         return true;
     }
 

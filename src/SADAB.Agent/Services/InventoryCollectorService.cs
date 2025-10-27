@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Win32;
 using SADAB.Agent.Configuration;
 using SADAB.Shared.DTOs;
@@ -18,7 +19,10 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
 {
     private readonly AgentConfiguration _configuration;
     private readonly IConfiguration _appConfiguration;
+    
     private readonly ILogger<WindowsInventoryCollectorService> _logger;
+    private ILogger _inventoryLogger;
+
     private readonly string _unknownValue;
 
     public WindowsInventoryCollectorService(
@@ -28,14 +32,19 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
     {
         _configuration = configuration;
         _appConfiguration = appConfiguration;
+
+        // Initialize main logger
         _logger = logger;
+
+        // Initialize inventory logger based on configuration
+        _inventoryLogger = appConfiguration.GetValue<bool>("AgentSettings:EnableInventoryCollectionLogs", false) ? logger : NullLogger<Worker>.Instance;
 
         _unknownValue = _appConfiguration["DefaultValues:Unknown"] ?? "Unknown";
     }
 
     public async Task<InventoryDataDto> CollectInventoryAsync()
     {
-        _logger.LogInformation(_appConfiguration["Messages:CollectingInventory"] ?? "Collecting inventory data");
+        _inventoryLogger.LogInformation(_appConfiguration["Messages:CollectingInventory"] ?? "Collecting inventory data");
 
         var inventory = new InventoryDataDto
         {
@@ -47,16 +56,16 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
         {
             try
             {
-                _logger.LogDebug(_appConfiguration["Messages:CollectingHardwareInfo"] ?? "Collecting hardware information");
+                _inventoryLogger.LogDebug(_appConfiguration["Messages:CollectingHardwareInfo"] ?? "Collecting hardware information");
                 CollectHardwareInfo(inventory);
 
-                _logger.LogDebug(_appConfiguration["Messages:CollectingInstalledSoftware"] ?? "Collecting installed software");
+                _inventoryLogger.LogDebug(_appConfiguration["Messages:CollectingInstalledSoftware"] ?? "Collecting installed software");
                 CollectInstalledSoftware(inventory);
 
-                _logger.LogDebug(_appConfiguration["Messages:CollectingEnvironmentVariables"] ?? "Collecting environment variables");
+                _inventoryLogger.LogDebug(_appConfiguration["Messages:CollectingEnvironmentVariables"] ?? "Collecting environment variables");
                 CollectEnvironmentVariables(inventory);
 
-                _logger.LogDebug(_appConfiguration["Messages:CollectingRunningServices"] ?? "Collecting running services");
+                _inventoryLogger.LogDebug(_appConfiguration["Messages:CollectingRunningServices"] ?? "Collecting running services");
                 CollectRunningServices(inventory);
             }
             catch (Exception ex)

@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SADAB.Agent.Configuration;
 using SADAB.Agent.Services;
 using SADAB.Shared.DTOs;
@@ -17,7 +19,10 @@ public class Worker : BackgroundService
     private readonly IDeploymentExecutorService _deploymentExecutor;
     private readonly ICommandExecutorService _commandExecutor;
     private readonly IInventoryCollectorService _inventoryCollector;
+    
     private readonly ILogger<Worker> _logger;
+    private ILogger _inventoryLogger;
+
     private readonly IHostApplicationLifetime _lifetime;
     private readonly string _certificateFileName;
     private readonly string _privateKeyFileName;
@@ -41,8 +46,14 @@ public class Worker : BackgroundService
         _deploymentExecutor = deploymentExecutor;
         _commandExecutor = commandExecutor;
         _inventoryCollector = inventoryCollector;
-        _logger = logger;
         _lifetime = lifetime;
+
+        // Initialize main logger
+        _logger = logger;
+
+        // Initialize inventory logger based on configuration
+        _inventoryLogger = appConfiguration.GetValue<bool>("AgentSettings:EnableInventoryCollectionLogs", false) ? logger : NullLogger<Worker>.Instance;
+
 
         _certificateFileName = _appConfiguration["AgentSettings:CertificateFileName"] ?? "agent.crt";
         _privateKeyFileName = _appConfiguration["AgentSettings:PrivateKeyFileName"] ?? "agent.key";
@@ -121,6 +132,11 @@ public class Worker : BackgroundService
                         _configuration.DeploymentCheckIntervalSeconds = updatedConfig.DeploymentCheckIntervalSeconds;
                         _configuration.CommandCheckIntervalSeconds = updatedConfig.CommandCheckIntervalSeconds;
                         _configuration.InventoryCollectionIntervalMinutes = updatedConfig.InventoryCollectionIntervalMinutes;
+
+                        // Initialize inventory logger based on configuration
+                        _inventoryLogger = _appConfiguration.GetValue<bool>("AgentSettings:EnableInventoryCollectionLogs", false) ? _logger : NullLogger<Worker>.Instance;
+
+
                         _logger.LogInformation("Agent configuration reloaded successfully");
                         _logger.LogDebug("Updated configuration: {@Configuration}", _configuration);
                     }
@@ -230,7 +246,7 @@ public class Worker : BackgroundService
 
             var nextCheckTime = DateTime.Now.AddSeconds(_configuration.CommandCheckIntervalSeconds);
             _logger.LogDebug("Waiting {HeartbeatIntervalSeconds} seconds before next heartbeat, Next check at {nextCheckTime}", _configuration.HeartbeatIntervalSeconds, nextCheckTime);
-            _logger.LogInformation("Heartbeat task finished");
+            _logger.LogInformation("Heartbeat task sent");
             await Task.Delay(TimeSpan.FromSeconds(_configuration.HeartbeatIntervalSeconds), stoppingToken);
         }
     }
@@ -316,10 +332,14 @@ public class Worker : BackgroundService
         {
             try
             {
+                _inventoryLogger.LogInformation("Collecting inventory data...");
                 var inventory = await _inventoryCollector.CollectInventoryAsync();
-                await _apiClient.SubmitInventoryAsync(inventory);
 
-                _logger.LogInformation(_appConfiguration["Messages:InventorySubmitted"] ?? "Inventory data submitted");
+                _inventoryLogger.LogDebug("Collected inventory data: {inventory}", inventory);
+                
+                _inventoryLogger.LogInformation("Submitting inventory data to server...");
+                await _apiClient.SubmitInventoryAsync(inventory);
+                _inventoryLogger.LogInformation(_appConfiguration["Messages:InventorySubmitted"] ?? "Inventory data submitted");
             }
             catch (Exception ex)
             {
@@ -328,7 +348,7 @@ public class Worker : BackgroundService
 
             // Check based on configured interval
             var nextCheckTime = DateTime.Now.AddMinutes(_configuration.InventoryCollectionIntervalMinutes);
-            _logger.LogDebug("Waiting {inventoryCollectionIntervalMinute} minutes before next inventory check. Next check at {extCheckTime}", _configuration.InventoryCollectionIntervalMinutes, nextCheckTime);
+            _inventoryLogger.LogDebug("Waiting {inventoryCollectionIntervalMinute} minutes before next inventory check. Next check at {extCheckTime}", _configuration.InventoryCollectionIntervalMinutes, nextCheckTime);
 
             await Task.Delay(TimeSpan.FromMinutes(_configuration.InventoryCollectionIntervalMinutes), stoppingToken);
 
