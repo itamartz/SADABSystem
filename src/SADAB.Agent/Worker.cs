@@ -93,17 +93,17 @@ public class Worker : BackgroundService
 
             var realodedTask = RealodedAgentConfigurationAsync(stoppingToken);
 
-            var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
+            //var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
 
-            //var deploymentTask = DeploymentCheckLoopAsync(stoppingToken);
+            var deploymentTask = DeploymentCheckLoopAsync(stoppingToken);
             //var commandTask = CommandCheckLoopAsync(stoppingToken);
-            var inventoryTask = InventoryCollectionLoopAsync(stoppingToken);
+            //var inventoryTask = InventoryCollectionLoopAsync(stoppingToken);
             //var certificateTask = CertificateRefreshLoopAsync(stoppingToken);
 
             // Wait for all tasks
             //await Task.WhenAll(heartbeatTask, deploymentTask, commandTask, inventoryTask, certificateTask);
             //await Task.WhenAll(heartbeatTask, certificateTask);
-            await Task.WhenAll(inventoryTask, heartbeatTask);
+            await Task.WhenAll(deploymentTask);
         }
         catch (Exception ex)
         {
@@ -257,7 +257,9 @@ public class Worker : BackgroundService
         {
             try
             {
+                _logger.LogInformation("about to get pending deployments");
                 var deployments = await _apiClient.GetPendingDeploymentsAsync();
+                _logger.LogDebug("Found {DeploymentCount} pending deployments", deployments.Count);
 
                 foreach (var deployment in deployments)
                 {
@@ -265,7 +267,9 @@ public class Worker : BackgroundService
                     {
                         try
                         {
+                            _logger.LogDebug("About to executing deployment {DeploymentId}: {DeploymentName}", deployment.DeploymentId, deployment.Name);
                             await _deploymentExecutor.ExecuteDeploymentAsync(deployment);
+                            _logger.LogDebug("Finished executing deployment {DeploymentId}: {DeploymentName}", deployment.DeploymentId, deployment.Name);
                         }
                         catch (Exception ex)
                         {
