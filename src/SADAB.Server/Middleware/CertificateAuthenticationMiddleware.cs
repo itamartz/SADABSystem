@@ -46,20 +46,15 @@ public class CertificateAuthenticationMiddleware
             return;
         }
 
-        // Apply certificate authentication to agent-related endpoints
-        var requiresAuth = context.Request.Path.StartsWithSegments("/api/agents") ||
-                          context.Request.Path.StartsWithSegments("/api/deployments") ||
-                          context.Request.Path.StartsWithSegments("/api/commands") ||
-                          context.Request.Path.StartsWithSegments("/api/inventory");
-
-        if (!requiresAuth)
+        // Apply certificate authentication to ALL /api/* endpoints (secure by default)
+        if (!context.Request.Path.StartsWithSegments("/api"))
         {
-            _logger.LogDebug("Path {Path} does not require certificate authentication, passing through", context.Request.Path);
+            _logger.LogDebug("Path {Path} is not an API endpoint, passing through", context.Request.Path);
             await _next(context);
             return;
         }
 
-        _logger.LogDebug("Processing certificate authentication for path: {Path}", context.Request.Path);
+        _logger.LogDebug("Processing certificate authentication for API path: {Path}", context.Request.Path);
 
         var clientCertificate = context.Connection.ClientCertificate;
 
