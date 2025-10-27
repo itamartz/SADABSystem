@@ -59,6 +59,9 @@ public class CertificateAuthenticationMiddleware
             // Try to get certificate from header (for development/testing)
             var certThumbprint = context.Request.Headers[_certificateHeaderName].FirstOrDefault();
 
+            _logger.LogDebug("Processing request to {Path} - Certificate header value: {Thumbprint}",
+                context.Request.Path, certThumbprint ?? "(null)");
+
             if (string.IsNullOrEmpty(certThumbprint))
             {
                 _logger.LogWarning("No client certificate provided for agent endpoint");
@@ -68,7 +71,10 @@ public class CertificateAuthenticationMiddleware
             }
 
             // Validate thumbprint from header
+            _logger.LogDebug("Validating certificate thumbprint: {Thumbprint}", certThumbprint);
             var isValid = await certificateService.ValidateCertificateAsync(certThumbprint);
+            _logger.LogDebug("Certificate validation result: {IsValid}", isValid);
+
             if (!isValid)
             {
                 _logger.LogWarning("Invalid certificate thumbprint: {Thumbprint}", certThumbprint);
@@ -77,9 +83,13 @@ public class CertificateAuthenticationMiddleware
                 return;
             }
 
+            _logger.LogDebug("Retrieving agent certificate by thumbprint: {Thumbprint}", certThumbprint);
             var agentCert = await certificateService.GetCertificateByThumbprintAsync(certThumbprint);
+
             if (agentCert != null)
             {
+                _logger.LogInformation("Certificate found for AgentId: {AgentId}, setting claims", agentCert.AgentId);
+
                 // Add agent claims
                 var claims = new[]
                 {
@@ -90,6 +100,16 @@ public class CertificateAuthenticationMiddleware
 
                 var identity = new ClaimsIdentity(claims, _certificateScheme);
                 context.User = new ClaimsPrincipal(identity);
+
+                _logger.LogDebug("Claims set successfully. User.Identity.IsAuthenticated: {IsAuthenticated}",
+                    context.User.Identity?.IsAuthenticated ?? false);
+            }
+            else
+            {
+                _logger.LogError("AgentCertificate NOT FOUND in database for thumbprint: {Thumbprint}", certThumbprint);
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync(_configuration["Messages:InvalidCertificate"] ?? "Invalid certificate");
+                return;
             }
         }
         else

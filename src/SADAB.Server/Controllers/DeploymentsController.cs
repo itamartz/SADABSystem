@@ -197,11 +197,26 @@ public class DeploymentsController : ControllerBase
     {
         try
         {
+            _logger.LogDebug("GetPendingDeployments called");
+            _logger.LogDebug("User.Identity.IsAuthenticated: {IsAuthenticated}", User.Identity?.IsAuthenticated ?? false);
+            _logger.LogDebug("User.Identity.AuthenticationType: {AuthType}", User.Identity?.AuthenticationType ?? "(null)");
+            _logger.LogDebug("User.Claims count: {ClaimCount}", User.Claims.Count());
+
+            foreach (var claim in User.Claims)
+            {
+                _logger.LogDebug("Claim: {Type} = {Value}", claim.Type, claim.Value);
+            }
+
             var agentIdClaim = User.FindFirst("AgentId")?.Value;
+            _logger.LogDebug("AgentId claim value: {AgentIdClaim}", agentIdClaim ?? "(null)");
+
             if (string.IsNullOrEmpty(agentIdClaim) || !Guid.TryParse(agentIdClaim, out var agentId))
             {
+                _logger.LogWarning("Unauthorized: AgentId claim is null or invalid");
                 return Unauthorized();
             }
+
+            _logger.LogInformation("Processing pending deployments for AgentId: {AgentId}", agentId);
 
             var deploymentsPath = _configuration["DeploymentsPath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "Deployments");
 
