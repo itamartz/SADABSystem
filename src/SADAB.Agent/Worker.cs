@@ -93,7 +93,7 @@ public class Worker : BackgroundService
 
             var realodedTask = RealodedAgentConfigurationAsync(stoppingToken);
 
-            //var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
+            var heartbeatTask = HeartbeatLoopAsync(stoppingToken);
 
             var deploymentTask = DeploymentCheckLoopAsync(stoppingToken);
             //var commandTask = CommandCheckLoopAsync(stoppingToken);
@@ -103,7 +103,7 @@ public class Worker : BackgroundService
             // Wait for all tasks
             //await Task.WhenAll(heartbeatTask, deploymentTask, commandTask, inventoryTask, certificateTask);
             //await Task.WhenAll(heartbeatTask, certificateTask);
-            await Task.WhenAll(deploymentTask);
+            await Task.WhenAll(heartbeatTask,deploymentTask);
         }
         catch (Exception ex)
         {
@@ -144,6 +144,7 @@ public class Worker : BackgroundService
                 else
                 {
                     _logger.LogWarning("Configuration file not found at {ConfigPath}", configPath);
+                    await RegisterAgentAsync();
                 }
             }
             catch (Exception ex)
