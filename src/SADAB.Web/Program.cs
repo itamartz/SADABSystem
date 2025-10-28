@@ -10,6 +10,13 @@ using SADAB.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+ILogger _logger = LoggerFactory.Create(logging =>
+{
+    logging.AddConsole();
+}).CreateLogger<Program>();
+
+_logger.LogInformation("Starting Web Server...");
+
 // ===========================================================================
 // Service Registration
 // ===========================================================================
@@ -28,17 +35,27 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddHttpClient("SADAB.API", client =>
 {
     var apiUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:5001";
+    _logger.LogDebug("Configuring SADAB.API HttpClient with BaseAddress: {ApiUrl}", apiUrl);
+
     client.BaseAddress = new Uri(apiUrl);
 });
 
 // Register application services with scoped lifetime
 // Scoped services are created once per Blazor circuit (user session)
 // This ensures each user has their own service instances for the duration of their session
+
+_logger.LogDebug("Registering application services...");
+_logger.LogDebug("Registered IAgentService with implementation AgentService");
 builder.Services.AddScoped<IAgentService, AgentService>();
+
+_logger.LogDebug("Registered IDeploymentService with implementation DeploymentService");
 builder.Services.AddScoped<IDeploymentService, DeploymentService>();
+
+_logger.LogDebug("Registered ICommandService with implementation CommandService");
 builder.Services.AddScoped<ICommandService, CommandService>();
 
 var app = builder.Build();
+
 
 // ===========================================================================
 // HTTP Request Pipeline Configuration
