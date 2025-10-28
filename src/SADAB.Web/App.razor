@@ -1,18 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <base href="~/" />
-    <link href="css/site.css" rel="stylesheet" />
-    <HeadOutlet />
-</head>
-<body>
-    <Routes />
-    <script src="_framework/blazor.server.js"></script>
-</body>
-</html>
+@*
+    App Component
+    =============
+    Root component for the Blazor application. This component only contains
+    the routing logic. The HTML structure (<html>, <head>, <body>) is defined
+    in _Host.cshtml for Blazor Server applications.
+
+    The Routes component handles navigation and renders the appropriate page
+    component based on the current URL.
+*@
+
+<Routes />
 
 @code {
-
+    // No code needed - this is a simple wrapper around the Routes component
 }
