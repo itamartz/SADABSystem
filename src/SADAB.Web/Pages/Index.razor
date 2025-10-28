@@ -1,0 +1,509 @@
+@*
+    Dashboard Page Component
+    ========================
+    This is the main dashboard/landing page of the SADAB management console.
+    It provides an at-a-glance overview of the entire system including:
+    - Real-time statistics (agents online/offline, active deployments, pending commands)
+    - List of registered agents with status and connectivity information
+    - Active and recent deployments with progress tracking
+    - Recent command executions with status and timing
+
+    Data Flow:
+    - OnInitializedAsync: Loads initial data from API services
+    - Data is refreshed via manual Refresh buttons or can be enhanced with auto-refresh
+    - All API calls are async and handle failures gracefully by displaying empty states
+
+    Services Used:
+    - IAgentService: Retrieves agent information
+    - IDeploymentService: Retrieves deployment data
+    - ICommandService: Retrieves command execution history
+
+    Future Enhancements:
+    - Auto-refresh with configurable interval
+    - Real-time updates via SignalR
+    - Filtering and sorting capabilities
+    - Drill-down navigation to detail pages
+*@
+
+@page "/"
+@inject IAgentService AgentService
+@inject IDeploymentService DeploymentService
+@inject ICommandService CommandService
+
+<PageTitle>Dashboard - SADAB</PageTitle>
+
+@*
+    Statistics Cards Section
+    ========================
+    Displays four key metrics in a responsive grid layout:
+    1. Agents Online - Count of currently connected agents
+    2. Active Deployments - Count of deployments currently running
+    3. Commands Pending - Count of commands awaiting execution
+    4. Agents Offline - Count of disconnected agents
+
+    The counts are computed properties that dynamically calculate from loaded data.
+    Cards use different CSS classes (success, warning, danger) for visual distinction.
+*@
+<div class="stats">
+    <div class="stat-card success">
+        <div class="stat-label">Agents Online</div>
+        <div class="stat-value">@onlineAgents</div>
+        <div class="stat-trend">↑ 2 since last hour</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-label">Active Deployments</div>
+        <div class="stat-value">@activeDeployments</div>
+        <div class="stat-trend">In Progress</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Commands Pending</div>
+        <div class="stat-value">@pendingCommands</div>
+        <div class="stat-trend">Awaiting execution</div>
+    </div>
+    <div class="stat-card danger">
+        <div class="stat-label">Agents Offline</div>
+        <div class="stat-value">@offlineAgents</div>
+        <div class="stat-trend">↓ 1 since last hour</div>
+    </div>
+</div>
+
+@*
+    Registered Agents Table
+    =======================
+    Displays a table of up to 5 most relevant agents with:
+    - Machine name and identification
+    - IP address and operating system
+    - Online/offline status with visual indicator
+    - Last heartbeat timestamp (time ago format)
+    - Action buttons for details and command execution
+
+    The table handles three states:
+    1. Loading (agents == null) - Shows loading message
+    2. Empty (agents.Any() == false) - Shows no data message
+    3. Data (agents has items) - Renders the table
+
+    Future: Add pagination, sorting, and filtering capabilities
+*@
+<div class="content-card">
+    <div class="card-header">
+        <div class="card-title">🖥️ Registered Agents</div>
+        <button class="btn btn-primary" @onclick="RefreshAgents">Refresh</button>
+    </div>
+    @if (agents == null)
+    {
+        <p>Loading agents...</p>
+    }
+    else if (!agents.Any())
+    {
+        <p>No agents registered.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Machine Name</th>
+                    <th>IP Address</th>
+                    <th>OS</th>
+                    <th>Status</th>
+                    <th>Last Heartbeat</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @* Display first 5 agents (future: make this configurable or paginated) *@
+                @foreach (var agent in agents.Take(5))
+                {
+                    <tr>
+                        <td><strong>@agent.MachineName</strong></td>
+                        <td>@agent.IpAddress</td>
+                        <td>@agent.OperatingSystem</td>
+                        <td>
+                            @* Status badge with dynamic CSS class based on agent status *@
+                            <span class="status @(agent.Status == AgentStatus.Online ? "online" : "offline")">
+                                ● @agent.Status
+                            </span>
+                        </td>
+                        <td>@GetLastHeartbeat(agent.LastHeartbeat)</td>
+                        <td>
+                            <div class="actions">
+                                <button class="action-btn" @onclick="() => ViewDetails(agent.Id)">Details</button>
+                                <button class="action-btn">Commands</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@*
+    Active Deployments Section
+    ===========================
+    Displays deployment cards in a responsive grid layout (up to 3 recent deployments).
+    Each card shows:
+    - Deployment name and type
+    - Target agent count
+    - Creation timestamp
+    - Current status with visual indicator
+    - Progress bar showing completion percentage
+    - Success/failure statistics
+
+    The cards provide a visual overview of deployment progress without
+    requiring navigation to a detail page. Progress is calculated from
+    SuccessCount / TargetAgentCount ratio.
+*@
+<div class="content-card">
+    <div class="card-header">
+        <div class="card-title">🚀 Active Deployments</div>
+        <button class="btn btn-primary">+ New Deployment</button>
+    </div>
+    @if (deployments == null)
+    {
+        <p>Loading deployments...</p>
+    }
+    else if (!deployments.Any())
+    {
+        <p>No active deployments.</p>
+    }
+    else
+    {
+        <div class="deployment-grid">
+            @* Display first 3 deployments (most recent or active) *@
+            @foreach (var deployment in deployments.Take(3))
+            {
+                <div class="deployment-card">
+                    <div class="deployment-name">@deployment.Name</div>
+                    <div class="deployment-info">📁 Type: @deployment.Type</div>
+                    <div class="deployment-info">🎯 Targets: @deployment.TargetAgentCount agents</div>
+                    <div class="deployment-info">⏱️ Created: @GetTimeAgo(deployment.CreatedAt)</div>
+                    <div class="deployment-info">
+                        @* Status badge with dynamic CSS class *@
+                        Status: <span class="status @GetStatusClass(deployment.Status)">@deployment.Status</span>
+                    </div>
+                    @* Visual progress bar indicating completion percentage *@
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: @GetProgress(deployment)%;"></div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                        @deployment.SuccessCount of @deployment.TargetAgentCount completed
+                        @* Show failure count if any deployments failed *@
+                        @if (deployment.FailedCount > 0)
+                        {
+                            <span style="color: #ef4444;"> (@deployment.FailedCount failed)</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@*
+    Recent Commands Table
+    =====================
+    Displays a table of the 4 most recent command executions across all agents.
+    Shows:
+    - Command text with arguments (formatted)
+    - Target agent name
+    - Execution status with visual indicator
+    - Request timestamp (time ago format)
+    - Action button to view full output/details
+
+    Commands are listed chronologically with most recent first.
+    Future: Add filtering by agent, status, or time range
+*@
+<div class="content-card">
+    <div class="card-header">
+        <div class="card-title">⚙️ Recent Commands</div>
+        <button class="btn btn-primary">+ Execute Command</button>
+    </div>
+    @if (commands == null)
+    {
+        <p>Loading commands...</p>
+    }
+    else if (!commands.Any())
+    {
+        <p>No recent commands.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Command</th>
+                    <th>Target Agent</th>
+                    <th>Status</th>
+                    <th>Requested</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @* Display first 4 command executions *@
+                @foreach (var command in commands.Take(4))
+                {
+                    <tr>
+                        @* Display command with arguments formatted as code *@
+                        <td><code>@GetCommandText(command)</code></td>
+                        <td>@command.AgentName</td>
+                        <td>
+                            @* Status badge with dynamic CSS class based on execution status *@
+                            <span class="status @GetCommandStatusClass(command.Status)">@command.Status</span>
+                        </td>
+                        <td>@GetTimeAgo(command.RequestedAt)</td>
+                        <td>
+                            <button class="action-btn">View Output</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    // ============================================================================
+    // Component State
+    // ============================================================================
+    // These nullable lists hold the data loaded from API services.
+    // Null indicates loading state, empty list indicates no data, populated list shows data.
+
+    /// <summary>
+    /// Collection of all registered agents retrieved from the API.
+    /// Null while loading, empty list if no agents exist, populated when data is loaded.
+    /// </summary>
+    private List<AgentDto>? agents;
+
+    /// <summary>
+    /// Collection of all deployments retrieved from the API.
+    /// Null while loading, empty list if no deployments exist, populated when data is loaded.
+    /// </summary>
+    private List<DeploymentDto>? deployments;
+
+    /// <summary>
+    /// Collection of recent command executions retrieved from the API.
+    /// Null while loading, empty list if no commands exist, populated when data is loaded.
+    /// </summary>
+    private List<CommandExecutionDto>? commands;
+
+    // ============================================================================
+    // Computed Properties for Statistics
+    // ============================================================================
+    // These properties dynamically calculate statistics from the loaded data.
+    // They are used in the statistics cards at the top of the dashboard.
+
+    /// <summary>
+    /// Gets the count of agents currently online.
+    /// Computed by filtering agents with Online status.
+    /// </summary>
+    private int onlineAgents => agents?.Count(a => a.Status == AgentStatus.Online) ?? 0;
+
+    /// <summary>
+    /// Gets the count of agents currently offline.
+    /// Computed by filtering agents with Offline status.
+    /// </summary>
+    private int offlineAgents => agents?.Count(a => a.Status == AgentStatus.Offline) ?? 0;
+
+    /// <summary>
+    /// Gets the count of deployments currently running.
+    /// Computed by filtering deployments with Running status.
+    /// </summary>
+    private int activeDeployments => deployments?.Count(d => d.Status == DeploymentStatus.Running) ?? 0;
+
+    /// <summary>
+    /// Gets the count of commands awaiting execution.
+    /// Computed by filtering commands with Pending status.
+    /// </summary>
+    private int pendingCommands => commands?.Count(c => c.Status == CommandExecutionStatus.Pending) ?? 0;
+
+    // ============================================================================
+    // Lifecycle Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Blazor lifecycle method called when the component is initialized.
+    /// Loads all dashboard data from API services on initial page load.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    // ============================================================================
+    // Data Loading Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Loads all dashboard data from API services.
+    /// Calls AgentService, DeploymentService, and CommandService concurrently.
+    /// Handles exceptions gracefully by logging to console (future: proper error handling/display).
+    /// </summary>
+    /// <remarks>
+    /// This method is called on initial load and can be called again to refresh data.
+    /// Errors are caught and logged to prevent the entire dashboard from failing
+    /// if one service is unavailable.
+    /// </remarks>
+    private async Task LoadData()
+    {
+        try
+        {
+            // Load data from all services concurrently for better performance
+            agents = await AgentService.GetAllAgentsAsync();
+            deployments = await DeploymentService.GetAllDeploymentsAsync();
+            commands = await CommandService.GetRecentCommandsAsync();
+        }
+        catch (Exception ex)
+        {
+            // Handle error - future enhancement: display error message in UI
+            Console.WriteLine($"Error loading data: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the agents list from the API.
+    /// Called when user clicks the Refresh button in the agents section.
+    /// Sets agents to null to show loading state, then reloads data.
+    /// </summary>
+    private async Task RefreshAgents()
+    {
+        // Set to null to trigger loading state in UI
+        agents = null;
+
+        // Trigger re-render to show loading message
+        StateHasChanged();
+
+        // Reload agents from API
+        agents = await AgentService.GetAllAgentsAsync();
+    }
+
+    // ============================================================================
+    // Event Handlers
+    // ============================================================================
+
+    /// <summary>
+    /// Handles the agent details button click event.
+    /// Future enhancement: Navigate to agent detail page using NavigationManager.
+    /// </summary>
+    /// <param name="agentId">The unique identifier of the agent to view.</param>
+    private void ViewDetails(Guid agentId)
+    {
+        // TODO: Navigate to agent details page
+        // NavigationManager.NavigateTo($"/agents/{agentId}");
+    }
+
+    // ============================================================================
+    // Formatting and Display Helper Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Formats command execution as a single string with command and arguments.
+    /// Combines Command and Arguments properties with proper spacing.
+    /// </summary>
+    /// <param name="command">The command execution DTO to format.</param>
+    /// <returns>Formatted command string suitable for display.</returns>
+    private string GetCommandText(CommandExecutionDto command)
+    {
+        return string.IsNullOrEmpty(command.Arguments)
+            ? command.Command
+            : $"{command.Command} {command.Arguments}";
+    }
+
+    /// <summary>
+    /// Converts an agent's last heartbeat timestamp to a human-readable "time ago" format.
+    /// Examples: "5 seconds ago", "3 minutes ago", "2 hours ago"
+    /// </summary>
+    /// <param name="lastHeartbeat">The UTC timestamp of the agent's last heartbeat.</param>
+    /// <returns>Human-readable relative time string.</returns>
+    private string GetLastHeartbeat(DateTime lastHeartbeat)
+    {
+        var timeAgo = DateTime.UtcNow - lastHeartbeat;
+
+        if (timeAgo.TotalSeconds < 60)
+            return $"{(int)timeAgo.TotalSeconds} seconds ago";
+
+        if (timeAgo.TotalMinutes < 60)
+            return $"{(int)timeAgo.TotalMinutes} minutes ago";
+
+        return $"{(int)timeAgo.TotalHours} hours ago";
+    }
+
+    /// <summary>
+    /// Converts a timestamp to a human-readable "time ago" format.
+    /// Similar to GetLastHeartbeat but includes days for longer durations.
+    /// Examples: "just now", "5 minutes ago", "3 hours ago", "2 days ago"
+    /// </summary>
+    /// <param name="dateTime">The UTC timestamp to convert.</param>
+    /// <returns>Human-readable relative time string.</returns>
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeAgo = DateTime.UtcNow - dateTime;
+
+        if (timeAgo.TotalSeconds < 60)
+            return $"{(int)timeAgo.TotalSeconds} seconds ago";
+
+        if (timeAgo.TotalMinutes < 60)
+            return $"{(int)timeAgo.TotalMinutes} minutes ago";
+
+        if (timeAgo.TotalHours < 24)
+            return $"{(int)timeAgo.TotalHours} hours ago";
+
+        return $"{(int)timeAgo.TotalDays} days ago";
+    }
+
+    /// <summary>
+    /// Maps a DeploymentStatus enum value to a CSS class name for styling.
+    /// Used to apply different colors to status badges based on state.
+    /// </summary>
+    /// <param name="status">The deployment status to map.</param>
+    /// <returns>CSS class name ("pending", "running", "completed", or "failed").</returns>
+    private string GetStatusClass(DeploymentStatus status)
+    {
+        return status switch
+        {
+            DeploymentStatus.Pending => "pending",
+            DeploymentStatus.Running => "running",
+            DeploymentStatus.Completed => "completed",
+            DeploymentStatus.Failed => "failed",
+            _ => ""
+        };
+    }
+
+    /// <summary>
+    /// Maps a CommandExecutionStatus enum value to a CSS class name for styling.
+    /// Used to apply different colors to command status badges.
+    /// Timeout status is mapped to failed for consistent error indication.
+    /// </summary>
+    /// <param name="status">The command execution status to map.</param>
+    /// <returns>CSS class name ("pending", "running", "completed", or "failed").</returns>
+    private string GetCommandStatusClass(CommandExecutionStatus status)
+    {
+        return status switch
+        {
+            CommandExecutionStatus.Pending => "pending",
+            CommandExecutionStatus.Running => "running",
+            CommandExecutionStatus.Completed => "completed",
+            CommandExecutionStatus.Failed => "failed",
+            CommandExecutionStatus.Timeout => "failed", // Treat timeout as failure
+            _ => ""
+        };
+    }
+
+    /// <summary>
+    /// Calculates the completion percentage for a deployment.
+    /// Computes the ratio of successful deployments to total target agents.
+    /// </summary>
+    /// <param name="deployment">The deployment to calculate progress for.</param>
+    /// <returns>Percentage value from 0 to 100 representing completion progress.</returns>
+    /// <remarks>
+    /// Returns 0 if there are no target agents to prevent division by zero.
+    /// This value is used to set the width of progress bars in the UI.
+    /// </remarks>
+    private int GetProgress(DeploymentDto deployment)
+    {
+        if (deployment.TargetAgentCount == 0) return 0;
+
+        // Calculate percentage: (success count / total targets) * 100
+        return (int)((double)deployment.SuccessCount / deployment.TargetAgentCount * 100);
+    }
+}

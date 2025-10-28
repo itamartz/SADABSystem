@@ -1,0 +1,112 @@
+@*
+    MainLayout Component
+    ====================
+    This is the primary layout component for the SADAB web application.
+    It provides the consistent page structure used across all pages, including:
+    - Sidebar navigation with links to all major sections
+    - Header bar with page title and user information
+    - Main content area where individual page components are rendered
+
+    Architecture:
+    - Inherits from LayoutComponentBase, making it a Blazor layout component
+    - The @Body directive renders the content of the active page
+    - NavLink components provide automatic active state styling based on current route
+    - Layout uses flexbox CSS for responsive two-column design
+
+    Usage:
+    - This layout is set as the default in Routes.razor
+    - Individual pages can override the layout using @layout directive if needed
+    - The PageTitle property can be dynamically set by child pages (future enhancement)
+*@
+
+@inherits LayoutComponentBase
+
+<div class="container">
+    @*
+        Sidebar Navigation
+        ==================
+        Left-side navigation panel with links to all application sections.
+        Uses NavLink components which automatically apply 'active' CSS class
+        when the current URL matches the href attribute.
+    *@
+    <div class="sidebar">
+        @* Application branding logo *@
+        <div class="logo">
+            SADAB <span>Console</span>
+        </div>
+
+        @*
+            Navigation Links
+            ================
+            Each NavLink provides navigation to a major section of the application.
+            Match="NavLinkMatch.All" on Dashboard ensures it only highlights for exact match.
+        *@
+        <NavLink class="nav-item" href="/" Match="NavLinkMatch.All">
+            📊 Dashboard
+        </NavLink>
+        <NavLink class="nav-item" href="/agents">
+            🖥️ Agents
+        </NavLink>
+        <NavLink class="nav-item" href="/deployments">
+            🚀 Deployments
+        </NavLink>
+        <NavLink class="nav-item" href="/commands">
+            ⚙️ Commands
+        </NavLink>
+        <NavLink class="nav-item" href="/inventory">
+            📦 Inventory
+        </NavLink>
+        <NavLink class="nav-item" href="/certificates">
+            🔒 Certificates
+        </NavLink>
+        <NavLink class="nav-item" href="/activity">
+            ⚡ Activity Log
+        </NavLink>
+        <NavLink class="nav-item" href="/settings">
+            ⚙️ Settings
+        </NavLink>
+    </div>
+
+    @*
+        Main Content Area
+        =================
+        Right-side content panel where individual pages are rendered.
+        Contains header bar and the @Body directive for page content.
+    *@
+    <div class="main-content">
+        @*
+            Header Bar
+            ==========
+            Displays current page title and user information.
+            Future enhancement: Make PageTitle dynamic based on current page.
+        *@
+        <div class="header">
+            <h1>@PageTitle</h1>
+            <div class="user-info">
+                <span>Admin User</span>
+                @* User avatar with initials *@
+                <div class="avatar">AU</div>
+            </div>
+        </div>
+
+        @*
+            Page Content Placeholder
+            ========================
+            The @Body directive renders the content of the currently active page component.
+            Each page's content appears here while maintaining the consistent layout structure.
+        *@
+        @Body
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Gets or sets the current page title displayed in the header.
+    /// </summary>
+    /// <remarks>
+    /// Currently static but can be enhanced to accept a cascading parameter
+    /// or use navigation state to dynamically update based on the active page.
+    /// This would allow each page to set its own title in the header.
+    /// </remarks>
+    private string PageTitle { get; set; } = "Dashboard";
+}
