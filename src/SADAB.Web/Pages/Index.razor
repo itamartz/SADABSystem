@@ -1,0 +1,270 @@
+@page "/"
+@inject IAgentService AgentService
+@inject IDeploymentService DeploymentService
+@inject ICommandService CommandService
+
+<PageTitle>Dashboard - SADAB</PageTitle>
+
+<!-- Statistics Cards -->
+<div class="stats">
+    <div class="stat-card success">
+        <div class="stat-label">Agents Online</div>
+        <div class="stat-value">@onlineAgents</div>
+        <div class="stat-trend">↑ 2 since last hour</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-label">Active Deployments</div>
+        <div class="stat-value">@activeDeployments</div>
+        <div class="stat-trend">In Progress</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Commands Pending</div>
+        <div class="stat-value">@pendingCommands</div>
+        <div class="stat-trend">Awaiting execution</div>
+    </div>
+    <div class="stat-card danger">
+        <div class="stat-label">Agents Offline</div>
+        <div class="stat-value">@offlineAgents</div>
+        <div class="stat-trend">↓ 1 since last hour</div>
+    </div>
+</div>
+
+<!-- Agents Table -->
+<div class="content-card">
+    <div class="card-header">
+        <div class="card-title">🖥️ Registered Agents</div>
+        <button class="btn btn-primary" @onclick="RefreshAgents">Refresh</button>
+    </div>
+    @if (agents == null)
+    {
+        <p>Loading agents...</p>
+    }
+    else if (!agents.Any())
+    {
+        <p>No agents registered.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Machine Name</th>
+                    <th>IP Address</th>
+                    <th>OS</th>
+                    <th>Status</th>
+                    <th>Last Heartbeat</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var agent in agents.Take(5))
+                {
+                    <tr>
+                        <td><strong>@agent.MachineName</strong></td>
+                        <td>@agent.IpAddress</td>
+                        <td>@agent.OperatingSystem</td>
+                        <td>
+                            <span class="status @(agent.Status == AgentStatus.Online ? "online" : "offline")">
+                                ● @agent.Status
+                            </span>
+                        </td>
+                        <td>@GetLastHeartbeat(agent.LastHeartbeat)</td>
+                        <td>
+                            <div class="actions">
+                                <button class="action-btn" @onclick="() => ViewDetails(agent.Id)">Details</button>
+                                <button class="action-btn">Commands</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<!-- Active Deployments -->
+<div class="content-card">
+    <div class="card-header">
+        <div class="card-title">🚀 Active Deployments</div>
+        <button class="btn btn-primary">+ New Deployment</button>
+    </div>
+    @if (deployments == null)
+    {
+        <p>Loading deployments...</p>
+    }
+    else if (!deployments.Any())
+    {
+        <p>No active deployments.</p>
+    }
+    else
+    {
+        <div class="deployment-grid">
+            @foreach (var deployment in deployments.Take(3))
+            {
+                <div class="deployment-card">
+                    <div class="deployment-name">@deployment.Name</div>
+                    <div class="deployment-info">📁 Type: @deployment.Type</div>
+                    <div class="deployment-info">🎯 Targets: @deployment.TargetAgentCount agents</div>
+                    <div class="deployment-info">⏱️ Created: @GetTimeAgo(deployment.CreatedAt)</div>
+                    <div class="deployment-info">
+                        Status: <span class="status @GetStatusClass(deployment.Status)">@deployment.Status</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: @GetProgress(deployment)%;"></div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                        @deployment.SuccessCount of @deployment.TargetAgentCount completed
+                        @if (deployment.FailedCount > 0)
+                        {
+                            <span style="color: #ef4444;"> (@deployment.FailedCount failed)</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Recent Commands -->
+<div class="content-card">
+    <div class="card-header">
+        <div class="card-title">⚙️ Recent Commands</div>
+        <button class="btn btn-primary">+ Execute Command</button>
+    </div>
+    @if (commands == null)
+    {
+        <p>Loading commands...</p>
+    }
+    else if (!commands.Any())
+    {
+        <p>No recent commands.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Command</th>
+                    <th>Target Agent</th>
+                    <th>Status</th>
+                    <th>Requested</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var command in commands.Take(4))
+                {
+                    <tr>
+                        <td><code>@GetCommandText(command)</code></td>
+                        <td>@command.AgentName</td>
+                        <td>
+                            <span class="status @GetCommandStatusClass(command.Status)">@command.Status</span>
+                        </td>
+                        <td>@GetTimeAgo(command.RequestedAt)</td>
+                        <td>
+                            <button class="action-btn">View Output</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<AgentDto>? agents;
+    private List<DeploymentDto>? deployments;
+    private List<CommandExecutionDto>? commands;
+
+    private int onlineAgents => agents?.Count(a => a.Status == AgentStatus.Online) ?? 0;
+    private int offlineAgents => agents?.Count(a => a.Status == AgentStatus.Offline) ?? 0;
+    private int activeDeployments => deployments?.Count(d => d.Status == DeploymentStatus.Running) ?? 0;
+    private int pendingCommands => commands?.Count(c => c.Status == CommandExecutionStatus.Pending) ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            agents = await AgentService.GetAllAgentsAsync();
+            deployments = await DeploymentService.GetAllDeploymentsAsync();
+            commands = await CommandService.GetRecentCommandsAsync();
+        }
+        catch (Exception ex)
+        {
+            // Handle error - could add logging or error display
+            Console.WriteLine($"Error loading data: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshAgents()
+    {
+        agents = null;
+        StateHasChanged();
+        agents = await AgentService.GetAllAgentsAsync();
+    }
+
+    private void ViewDetails(Guid agentId)
+    {
+        // Navigate to agent details
+    }
+
+    private string GetCommandText(CommandExecutionDto command)
+    {
+        return string.IsNullOrEmpty(command.Arguments)
+            ? command.Command
+            : $"{command.Command} {command.Arguments}";
+    }
+
+    private string GetLastHeartbeat(DateTime lastHeartbeat)
+    {
+        var timeAgo = DateTime.UtcNow - lastHeartbeat;
+        if (timeAgo.TotalSeconds < 60) return $"{(int)timeAgo.TotalSeconds} seconds ago";
+        if (timeAgo.TotalMinutes < 60) return $"{(int)timeAgo.TotalMinutes} minutes ago";
+        return $"{(int)timeAgo.TotalHours} hours ago";
+    }
+
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeAgo = DateTime.UtcNow - dateTime;
+        if (timeAgo.TotalSeconds < 60) return $"{(int)timeAgo.TotalSeconds} seconds ago";
+        if (timeAgo.TotalMinutes < 60) return $"{(int)timeAgo.TotalMinutes} minutes ago";
+        if (timeAgo.TotalHours < 24) return $"{(int)timeAgo.TotalHours} hours ago";
+        return $"{(int)timeAgo.TotalDays} days ago";
+    }
+
+    private string GetStatusClass(DeploymentStatus status)
+    {
+        return status switch
+        {
+            DeploymentStatus.Pending => "pending",
+            DeploymentStatus.Running => "running",
+            DeploymentStatus.Completed => "completed",
+            DeploymentStatus.Failed => "failed",
+            _ => ""
+        };
+    }
+
+    private string GetCommandStatusClass(CommandExecutionStatus status)
+    {
+        return status switch
+        {
+            CommandExecutionStatus.Pending => "pending",
+            CommandExecutionStatus.Running => "running",
+            CommandExecutionStatus.Completed => "completed",
+            CommandExecutionStatus.Failed => "failed",
+            CommandExecutionStatus.Timeout => "failed",
+            _ => ""
+        };
+    }
+
+    private int GetProgress(DeploymentDto deployment)
+    {
+        if (deployment.TargetAgentCount == 0) return 0;
+        return (int)((double)deployment.SuccessCount / deployment.TargetAgentCount * 100);
+    }
+}

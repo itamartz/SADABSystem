@@ -1,0 +1,52 @@
+@inherits LayoutComponentBase
+
+<div class="container">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+        <div class="logo">
+            SADAB <span>Console</span>
+        </div>
+        <NavLink class="nav-item" href="/" Match="NavLinkMatch.All">
+            📊 Dashboard
+        </NavLink>
+        <NavLink class="nav-item" href="/agents">
+            🖥️ Agents
+        </NavLink>
+        <NavLink class="nav-item" href="/deployments">
+            🚀 Deployments
+        </NavLink>
+        <NavLink class="nav-item" href="/commands">
+            ⚙️ Commands
+        </NavLink>
+        <NavLink class="nav-item" href="/inventory">
+            📦 Inventory
+        </NavLink>
+        <NavLink class="nav-item" href="/certificates">
+            🔒 Certificates
+        </NavLink>
+        <NavLink class="nav-item" href="/activity">
+            ⚡ Activity Log
+        </NavLink>
+        <NavLink class="nav-item" href="/settings">
+            ⚙️ Settings
+        </NavLink>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <h1>@PageTitle</h1>
+            <div class="user-info">
+                <span>Admin User</span>
+                <div class="avatar">AU</div>
+            </div>
+        </div>
+
+        @Body
+    </div>
+</div>
+
+@code {
+    private string PageTitle { get; set; } = "Dashboard";
+}
