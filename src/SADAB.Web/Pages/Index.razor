@@ -26,9 +26,13 @@
 *@
 
 @page "/"
+@using Microsoft.Extensions.Options
+@using SADAB.Web.Settings
 @inject IAgentService AgentService
 @inject IDeploymentService DeploymentService
 @inject ICommandService CommandService
+@inject IOptionsMonitor<DashboardSettings> DashboardSettingsMonitor
+@implements IDisposable
 
 <PageTitle>Dashboard - SADAB</PageTitle>
 
@@ -87,7 +91,6 @@
 <div class="content-card">
     <div class="card-header">
         <div class="card-title">🖥️ Registered Agents</div>
-        <button class="btn btn-primary" @onclick="RefreshAgents">Refresh</button>
     </div>
     @if (agents == null)
     {
@@ -116,12 +119,12 @@
                 {
                     <tr>
                         <td><strong>@agent.MachineName</strong></td>
-                        <td>@agent.IpAddress</td>
+                        <td>@agent.IpAddress.Split(',')[0]</td>
                         <td>@agent.OperatingSystem</td>
                         <td>
-                            @* Status badge with dynamic CSS class based on agent status *@
-                            <span class="status @(agent.Status == AgentStatus.Online ? "online" : "offline")">
-                                ● @agent.Status
+                            @* Status badge with dynamic CSS class based on last heartbeat (offline if > 5 minutes) *@
+                            <span class="status @(IsAgentOnline(agent.LastHeartbeat) ? "online" : "offline")">
+                                @(IsAgentOnline(agent.LastHeartbeat) ? "Online" : "Offline")
                             </span>
                         </td>
                         <td>@GetLastHeartbeat(agent.LastHeartbeat)</td>
@@ -287,6 +290,16 @@
     /// </summary>
     private List<CommandExecutionDto>? commands;
 
+    /// <summary>
+    /// Timer for automatic dashboard refresh. Triggers data reload at regular intervals.
+    /// </summary>
+    private Timer? refreshTimer;
+
+    /// <summary>
+    /// Listener for configuration changes. Allows updating refresh interval without restarting.
+    /// </summary>
+    private IDisposable? settingsChangeListener;
+
     // ============================================================================
     // Computed Properties for Statistics
     // ============================================================================
@@ -295,15 +308,15 @@
 
     /// <summary>
     /// Gets the count of agents currently online.
-    /// Computed by filtering agents with Online status.
+    /// Computed by filtering agents with last heartbeat within 5 minutes.
     /// </summary>
-    private int onlineAgents => agents?.Count(a => a.Status == AgentStatus.Online) ?? 0;
+    private int onlineAgents => agents?.Count(a => IsAgentOnline(a.LastHeartbeat)) ?? 0;
 
     /// <summary>
     /// Gets the count of agents currently offline.
-    /// Computed by filtering agents with Offline status.
+    /// Computed by filtering agents with last heartbeat older than 5 minutes.
     /// </summary>
-    private int offlineAgents => agents?.Count(a => a.Status == AgentStatus.Offline) ?? 0;
+    private int offlineAgents => agents?.Count(a => !IsAgentOnline(a.LastHeartbeat)) ?? 0;
 
     /// <summary>
     /// Gets the count of deployments currently running.
@@ -324,10 +337,48 @@
     /// <summary>
     /// Blazor lifecycle method called when the component is initialized.
     /// Loads all dashboard data from API services on initial page load.
+    /// Sets up automatic refresh timer based on configuration with support for runtime changes.
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
+
+        // Set up automatic refresh timer with configured interval
+        InitializeRefreshTimer();
+
+        // Set up listener for configuration changes
+        // This allows the refresh interval to be updated without restarting the application
+        settingsChangeListener = DashboardSettingsMonitor.OnChange(settings =>
+        {
+            Console.WriteLine($"Dashboard settings changed. New refresh interval: {settings.RefreshIntervalMs}ms");
+            InitializeRefreshTimer();
+        });
+    }
+
+    /// <summary>
+    /// Initializes or reinitializes the refresh timer with the current configuration settings.
+    /// Disposes of the old timer if it exists before creating a new one.
+    /// </summary>
+    private void InitializeRefreshTimer()
+    {
+        // Get current settings
+        var settings = DashboardSettingsMonitor.CurrentValue;
+        var refreshInterval = settings.RefreshIntervalMs;
+
+        // Dispose of old timer if it exists
+        refreshTimer?.Dispose();
+
+        // Only create timer if refresh interval is greater than 0
+        // Setting RefreshIntervalMs to 0 disables auto-refresh
+        if (refreshInterval > 0)
+        {
+            refreshTimer = new Timer(async _ => await RefreshDashboard(), null, refreshInterval, refreshInterval);
+            Console.WriteLine($"Dashboard auto-refresh enabled with interval: {refreshInterval}ms");
+        }
+        else
+        {
+            Console.WriteLine("Dashboard auto-refresh disabled (RefreshIntervalMs = 0)");
+        }
     }
 
     // ============================================================================
@@ -350,6 +401,7 @@
         {
             // Load data from all services concurrently for better performance
             agents = await AgentService.GetAllAgentsAsync();
+            agents = agents.Where(a => a.IpAddress != "127.0.0.1").ToList();
             // deployments = await DeploymentService.GetAllDeploymentsAsync();
             // commands = await CommandService.GetRecentCommandsAsync();
         }
@@ -357,6 +409,28 @@
         {
             // Handle error - future enhancement: display error message in UI
             Console.WriteLine($"Error loading data: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Refreshes all dashboard data automatically via timer.
+    /// Invokes StateHasChanged to update the UI on the correct thread.
+    /// </summary>
+    private async Task RefreshDashboard()
+    {
+        try
+        {
+            // Load data from all services
+            agents = await AgentService.GetAllAgentsAsync();
+            agents = agents.Where(a => a.IpAddress != "127.0.0.1").ToList();
+            // deployments = await DeploymentService.GetAllDeploymentsAsync();
+            // commands = await CommandService.GetRecentCommandsAsync();
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing dashboard: {ex.Message}");
         }
     }
 
@@ -397,6 +471,18 @@
     // ============================================================================
 
     /// <summary>
+    /// Determines if an agent is online based on its last heartbeat.
+    /// An agent is considered online if its last heartbeat was within 5 minutes.
+    /// </summary>
+    /// <param name="lastHeartbeat">The UTC timestamp of the agent's last heartbeat.</param>
+    /// <returns>True if the agent is online (heartbeat within 1 minutes), false otherwise.</returns>
+    private bool IsAgentOnline(DateTime lastHeartbeat)
+    {
+        var timeAgo = DateTime.Now - lastHeartbeat;
+        return timeAgo.TotalMinutes <= 1;
+    }
+
+    /// <summary>
     /// Formats command execution as a single string with command and arguments.
     /// Combines Command and Arguments properties with proper spacing.
     /// </summary>
@@ -417,7 +503,7 @@
     /// <returns>Human-readable relative time string.</returns>
     private string GetLastHeartbeat(DateTime lastHeartbeat)
     {
-        var timeAgo = DateTime.UtcNow - lastHeartbeat;
+        var timeAgo = DateTime.Now - lastHeartbeat;
 
         if (timeAgo.TotalSeconds < 60)
             return $"{(int)timeAgo.TotalSeconds} seconds ago";
@@ -505,5 +591,19 @@
 
         // Calculate percentage: (success count / total targets) * 100
         return (int)((double)deployment.SuccessCount / deployment.TargetAgentCount * 100);
+    }
+
+    // ============================================================================
+    // Disposal
+    // ============================================================================
+
+    /// <summary>
+    /// Disposes of resources when the component is destroyed.
+    /// Ensures the refresh timer and settings change listener are properly cleaned up to prevent memory leaks.
+    /// </summary>
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+        settingsChangeListener?.Dispose();
     }
 }

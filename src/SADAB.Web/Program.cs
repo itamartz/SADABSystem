@@ -8,6 +8,7 @@
 
 using SADAB.Web.Handlers;
 using SADAB.Web.Services;
+using SADAB.Web.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,6 +70,12 @@ builder.Services.AddScoped<IDeploymentService, DeploymentService>();
 
 _logger.LogDebug("Registered ICommandService with implementation CommandService");
 builder.Services.AddScoped<ICommandService, CommandService>();
+
+// Register configuration options
+// Binds the DashboardSettings section from appsettings.json to the DashboardSettings class
+// Uses IOptionsMonitor to support runtime configuration changes
+_logger.LogDebug("Registering configuration options...");
+builder.Services.Configure<DashboardSettings>(builder.Configuration.GetSection("DashboardSettings"));
 
 var app = builder.Build();
 

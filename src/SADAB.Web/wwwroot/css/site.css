@@ -137,6 +137,7 @@ body {
     padding: 25px;
     margin-bottom: 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    position: relative;
 }
 
 .card-header {
@@ -176,6 +177,7 @@ body {
 .table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 
 .table thead {
@@ -197,6 +199,38 @@ body {
 
 .table tr:hover {
     background: #f8fafc;
+}
+
+/* Fixed column widths for agents table */
+.table th:nth-child(1),
+.table td:nth-child(1) {
+    width: 20%;
+}
+
+.table th:nth-child(2),
+.table td:nth-child(2) {
+    width: 15%;
+}
+
+.table th:nth-child(3),
+.table td:nth-child(3) {
+    width: 20%;
+}
+
+.table th:nth-child(4),
+.table td:nth-child(4) {
+    width: 12%;
+}
+
+.table th:nth-child(5),
+.table td:nth-child(5) {
+    width: 15%;
+    white-space: nowrap;
+}
+
+.table th:nth-child(6),
+.table td:nth-child(6) {
+    width: 18%;
 }
 
 /* Status Badges */
