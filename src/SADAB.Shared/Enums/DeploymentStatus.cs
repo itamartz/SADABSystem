@@ -4,6 +4,7 @@ public enum DeploymentStatus
 {
     Pending,
     InProgress,
+    Running,
     Completed,
     Failed,
     Cancelled
