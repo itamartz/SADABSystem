@@ -68,15 +68,6 @@ public class CertificateAuthenticationMiddleware
 
             if (string.IsNullOrEmpty(certThumbprint))
             {
-                // Check if user is already authenticated by a previous middleware (e.g., LocalConnectionBypass)
-                if (context.User?.Identity?.IsAuthenticated == true)
-                {
-                    _logger.LogInformation("User already authenticated by previous middleware (AuthType: {AuthType}), skipping certificate check for {Path}",
-                        context.User.Identity.AuthenticationType, context.Request.Path);
-                    await _next(context);
-                    return;
-                }
-
                 _logger.LogWarning("No client certificate provided for agent endpoint");
                 context.Response.StatusCode = 401;
                 await context.Response.WriteAsync(_configuration["Messages:CertificateRequired"] ?? "Client certificate required");

@@ -6,6 +6,7 @@
 // middleware pipeline, and routing for the web interface.
 // ===========================================================================
 
+using SADAB.Web.Handlers;
 using SADAB.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,10 +23,25 @@ builder.Services.AddRazorPages();
 // Enables server-side Blazor with SignalR for real-time UI updates
 builder.Services.AddServerSideBlazor();
 
-// Register named HTTP client for SADAB API communication
-// This client is configured with the base URL from appsettings.json and is
-// used by all service classes to communicate with the backend API
+// Register certificate services
+// These handle certificate storage and API registration for client authentication
+builder.Services.AddSingleton<ICertificateStorageService, CertificateStorageService>();
+builder.Services.AddSingleton<IApiRegistrationService, ApiRegistrationService>();
+
+// Register HTTP message handler for adding certificate header to requests
+builder.Services.AddTransient<CertificateHeaderHandler>();
+
+// Register named HTTP client for SADAB API communication with certificate authentication
+// This client automatically adds the X-Client-Certificate-Thumbprint header to all requests
 builder.Services.AddHttpClient("SADAB.API", client =>
+{
+    var apiUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:5001";
+    client.BaseAddress = new Uri(apiUrl);
+})
+.AddHttpMessageHandler<CertificateHeaderHandler>();
+
+// Register anonymous HTTP client for initial registration (no certificate required)
+builder.Services.AddHttpClient("SADAB.API.Anonymous", client =>
 {
     var apiUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:5001";
     client.BaseAddress = new Uri(apiUrl);
@@ -39,6 +55,53 @@ builder.Services.AddScoped<IDeploymentService, DeploymentService>();
 builder.Services.AddScoped<ICommandService, CommandService>();
 
 var app = builder.Build();
+
+// ===========================================================================
+// Web App Certificate Registration
+// ===========================================================================
+// Ensure the web app has a valid certificate for API authentication
+// If no certificate exists or it's expired, register with the API to get a new one
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    var certificateStorage = services.GetRequiredService<ICertificateStorageService>();
+    var registrationService = services.GetRequiredService<IApiRegistrationService>();
+
+    try
+    {
+        if (!certificateStorage.HasValidCertificate())
+        {
+            logger.LogInformation("No valid certificate found. Registering web app with API...");
+
+            var registrationResponse = await registrationService.RegisterWebAppAsync();
+
+            if (registrationResponse != null)
+            {
+                certificateStorage.StoreCertificate(
+                    registrationResponse.Certificate,
+                    registrationResponse.PrivateKey);
+
+                logger.LogInformation("Web app registered successfully. AgentId: {AgentId}, Certificate expires: {ExpiryDate}",
+                    registrationResponse.AgentId, registrationResponse.ExpiresAt);
+            }
+            else
+            {
+                logger.LogError("Failed to register web app with API. Application may not be able to connect to API.");
+            }
+        }
+        else
+        {
+            logger.LogInformation("Valid certificate found. Thumbprint: {Thumbprint}",
+                certificateStorage.GetCertificateThumbprint());
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error during web app certificate initialization");
+    }
+}
 
 // ===========================================================================
 // HTTP Request Pipeline Configuration
