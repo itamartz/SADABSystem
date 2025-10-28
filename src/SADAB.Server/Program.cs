@@ -184,9 +184,14 @@ if (!Directory.Exists(deploymentsPath))
     app.Logger.LogInformation("Created Deployments folder at {Path}", deploymentsPath);
 }
 
+// Use https redirection and CORS
 app.UseHttpsRedirection();
 
+// CORS (Cross-Origin Resource Sharing) is a security mechanism that allows web servers to specify which origins (domains) are permitted to access their resources from a browser.
 app.UseCors();
+
+// Custom middleware to bypass authentication for local connections
+app.UseLocalConnectionBypass();
 
 // Custom certificate authentication middleware (must run BEFORE UseAuthentication)
 app.UseCertificateAuthentication();

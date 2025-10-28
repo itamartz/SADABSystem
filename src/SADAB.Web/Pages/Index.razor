@@ -350,8 +350,8 @@
         {
             // Load data from all services concurrently for better performance
             agents = await AgentService.GetAllAgentsAsync();
-            deployments = await DeploymentService.GetAllDeploymentsAsync();
-            commands = await CommandService.GetRecentCommandsAsync();
+            // deployments = await DeploymentService.GetAllDeploymentsAsync();
+            // commands = await CommandService.GetRecentCommandsAsync();
         }
         catch (Exception ex)
         {

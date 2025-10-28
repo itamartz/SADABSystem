@@ -12,6 +12,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SADAB.Shared", "src\SADAB.Shared\SADAB.Shared.csproj", "{C3D4E5F6-A7B8-4C5D-0E1F-2A3B4C5D6E7F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SADAB.Web", "src\SADAB.Web\SADAB.Web.csproj", "{28C56288-5B34-A9DE-CC9B-F47F3E5A72EF}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D} = {A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,5 +41,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1DC4FD13-F388-4830-8FAC-B9A56760ABB0}
 	EndGlobalSection
 EndGlobal

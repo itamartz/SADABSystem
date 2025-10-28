@@ -2,7 +2,7 @@
   "profiles": {
     "SADAB.Server": {
       "commandName": "Project",
-      "launchBrowser": true,
+      "launchBrowser": false,
       "launchUrl": "swagger",
       "dotnetRunMessages": true,
       "environmentVariables": {
