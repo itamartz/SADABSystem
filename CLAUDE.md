@@ -134,7 +134,50 @@ Supported types (see `SADAB.Shared/Enums/DeploymentType.cs`):
 - Constants: PascalCase or UPPER_CASE
 
 ### Required Patterns
-1. **ToString() overrides**: All DTOs and models must implement ToString() for debugging
+
+#### 1. ToString() Extension Method Pattern
+All DTOs and models must implement ToString() for debugging using the `ToKeyValueString()` extension method:
+
+**Location**: `SADAB.Shared/Extensions/ObjectExtensions.cs`
+
+**Usage**:
+```csharp
+using SADAB.Shared.Extensions;
+
+public class MyDto
+{
+    public string Name { get; set; }
+    public int Age { get; set; }
+    public string? Password { get; set; }
+
+    /// <summary>
+    /// Returns a string representation with all properties in Key=Value format using reflection.
+    /// </summary>
+    public override string ToString() => this.ToKeyValueString();
+}
+```
+
+**Automatic Handling**:
+- **Sensitive fields**: Properties containing "Password", "PrivateKey" are masked as "***"
+- **Tokens**: Truncated to first 20 characters
+- **Certificates**: Truncated to first 50 characters
+- **Long outputs**: Output/ErrorOutput/ErrorMessage truncated to 50 characters
+- **Dictionaries**: Expanded to show all key-value pairs `[Key1=Value1, Key2=Value2]`
+- **Lists**: Show item count or expanded based on type
+- **DateTime**: Formatted as "yyyy-MM-dd HH:mm:ss"
+- **Null values**: Display as "null"
+
+**Benefits**:
+- Future-proof: New properties automatically appear in ToString() output
+- Consistent: All DTOs follow the same pattern
+- Secure: Sensitive data automatically masked
+- Maintainable: Logic lives in one place
+
+**Example Output**:
+```
+Status=Online, IpAddress=192.168.1.100, SystemInfo=[MachineName=SERVER01, OSVersion=Windows 10, AgentVersion=1.0.1]
+```
+
 2. **XML documentation**: All public classes and methods should have XML comments
 3. **Logging levels**:
    - `LogDebug`: For variable values and detailed flow
@@ -151,6 +194,13 @@ _logger.LogWarning("Unauthorized access attempt from {IpAddress}", ipAddress);
 
 4. **Dependency Injection**: Use constructor injection for all services
 5. **Configuration injection**: Always inject `IConfiguration` rather than hardcode values
+
+### DTO ToString() Implementation Checklist
+When creating a new DTO:
+1. Add `using SADAB.Shared.Extensions;` at the top
+2. Override ToString() with: `public override string ToString() => this.ToKeyValueString();`
+3. Add XML documentation comment describing the output
+4. No additional logic needed - the extension handles everything
 
 ### Project Structure Notes
 - **Controllers** are thin and delegate to services
@@ -249,9 +299,10 @@ Configured with JWT Bearer token support
 1. Always read files before editing
 2. Use multi-step TODO lists for complex tasks
 3. Prefer editing existing files over creating new ones
-4. Use `ToString()` overrides on all DTOs/models for debugging
+4. Use `ToString()` overrides on all DTOs/models using `ToKeyValueString()` extension method
 5. Configuration over hardcoding (no magic strings or numbers)
 6. Comprehensive error handling with proper logging levels
 7. Separate concerns: Controllers → Services → Data layer
 8. Follow existing naming conventions and project structure
-9. Document object in logger.LogDebug calls for easier tracing 
+9. Document object in logger.LogDebug calls for easier tracing
+10. Use the `ToKeyValueString()` extension method for all new DTOs (never write manual ToString() logic) 

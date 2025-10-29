@@ -1,3 +1,5 @@
+using SADAB.Shared.Extensions;
+
 namespace SADAB.Shared.DTOs;
 
 public class CertificateRefreshRequest
@@ -5,10 +7,10 @@ public class CertificateRefreshRequest
     public Guid AgentId { get; set; }
     public required string CurrentCertificateThumbprint { get; set; }
 
-    public override string ToString()
-    {
-        return $"AgentId={AgentId}, CurrentCertificateThumbprint={CurrentCertificateThumbprint}";
-    }
+    /// <summary>
+    /// Returns a string representation with all properties in Key=Value format using reflection.
+    /// </summary>
+    public override string ToString() => this.ToKeyValueString();
 }
 
 public class CertificateRefreshResponse
@@ -17,10 +19,11 @@ public class CertificateRefreshResponse
     public required string PrivateKey { get; set; }
     public DateTime ExpiresAt { get; set; }
 
-    public override string ToString()
-    {
-        return $"Certificate={Certificate.Substring(0, Math.Min(50, Certificate.Length))}..., PrivateKey=***, ExpiresAt={ExpiresAt:yyyy-MM-dd HH:mm:ss}";
-    }
+    /// <summary>
+    /// Returns a string representation with all properties in Key=Value format using reflection.
+    /// Sensitive data (PrivateKey) is masked, long strings (Certificate) are truncated.
+    /// </summary>
+    public override string ToString() => this.ToKeyValueString();
 }
 
 public class CreateCertificateRequest
@@ -28,8 +31,8 @@ public class CreateCertificateRequest
     public Guid AgentId { get; set; }
     public int ValidityDays { get; set; } = 60;
 
-    public override string ToString()
-    {
-        return $"AgentId={AgentId}, ValidityDays={ValidityDays}";
-    }
+    /// <summary>
+    /// Returns a string representation with all properties in Key=Value format using reflection.
+    /// </summary>
+    public override string ToString() => this.ToKeyValueString();
 }

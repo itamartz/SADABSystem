@@ -223,6 +223,7 @@ public class Worker : BackgroundService
             try
             {
                 _logger.LogDebug("about to sending heartbeat to server...");
+                var agentVersion = _appConfiguration["AgentSettings:Version"] ?? "Unknown";
                 var request = new AgentHeartbeatRequest
                 {
                     Status = AgentStatus.Online,
@@ -231,7 +232,8 @@ public class Worker : BackgroundService
                     {
                         ["MachineName"] = Environment.MachineName,
                         ["UserName"] = Environment.UserName,
-                        ["OSVersion"] = Environment.OSVersion.ToString()
+                        ["OSVersion"] = Environment.OSVersion.ToString(),
+                        ["AgentVersion"] = agentVersion
                     }
                 };
 
