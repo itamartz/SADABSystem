@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(git mv:*)",
+      "Bash(start mock/agents-panel.html)",
+      "Bash(start mock/agent-details.html)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

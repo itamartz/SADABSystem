@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SADAB - Agent Details: SERVER-01</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .logo span {
+            color: #60a5fa;
+        }
+
+        .nav-item {
+            padding: 12px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .nav-item.active {
+            background: rgba(96, 165, 250, 0.3);
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-x: hidden;
+            max-width: 100%;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .breadcrumb a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Search Box */
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+
+        .search-box input {
+            border: none;
+            background: none;
+            outline: none;
+            margin-left: 8px;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .search-box input::placeholder {
+            color: #9ca3af;
+        }
+
+        /* Agent Header */
+        .agent-header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 20px;
+        }
+
+        .agent-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .agent-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .agent-name-section h1 {
+            font-size: 28px;
+            color: #1e3a8a;
+            margin-bottom: 5px;
+        }
+
+        .agent-subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1e40af;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #666;
+            border: 1px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #f9fafb;
+        }
+
+        .btn-icon {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            position: relative;
+        }
+
+        .btn-icon:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+        }
+
+        .btn-icon:hover::before {
+            content: '';
+            position: absolute;
+            bottom: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-bottom-color: #1f2937;
+            z-index: 1000;
+        }
+
+        .status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status.online {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            position: relative;
+            cursor: default;
+        }
+
+        .status-icon.online {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-icon.offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-icon:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+        }
+
+        .status-icon:hover::before {
+            content: '';
+            position: absolute;
+            bottom: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-bottom-color: #1f2937;
+            z-index: 1000;
+        }
+
+        .header-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+
+        .stat-subtext {
+            font-size: 11px;
+            color: #999;
+            margin-top: 3px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            background: white;
+            padding: 5px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #666;
+        }
+
+        .tab:hover {
+            background: #f3f4f6;
+        }
+
+        .tab.active {
+            background: #2563eb;
+            color: white;
+        }
+
+        .tab-content {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Content Card */
+        .content-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e3a8a;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .info-value code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        /* Certificate Card */
+        .cert-warning {
+            background: #fffbeb;
+            border: 2px solid #fef3c7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cert-warning-icon {
+            font-size: 24px;
+        }
+
+        .cert-warning-text {
+            flex: 1;
+        }
+
+        .cert-warning-title {
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 3px;
+        }
+
+        .cert-warning-desc {
+            font-size: 13px;
+            color: #78350f;
+        }
+
+        /* Metrics */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .metric-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .metric-name {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+
+        .metric-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .metric-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .metric-bar-fill.low {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
+        .metric-bar-fill.medium {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .metric-bar-fill.high {
+            background: linear-gradient(90deg, #ef4444, #f87171);
+        }
+
+        /* Activity Log */
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #2563eb;
+            align-items: center;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            background: #dbeafe;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: #1e3a8a;
+            margin-bottom: 3px;
+        }
+
+        .activity-desc {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .activity-time {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .activity-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .activity-status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .activity-status.success {
+            color: #166534;
+        }
+
+        .activity-status.success::before {
+            background: #10b981;
+        }
+
+        .activity-status.running {
+            color: #1e40af;
+        }
+
+        .activity-status.running::before {
+            background: #2563eb;
+            animation: pulse 2s infinite;
+        }
+
+        .activity-status.stopped {
+            color: #666;
+        }
+
+        .activity-status.stopped::before {
+            background: #94a3b8;
+        }
+
+        .activity-status.error {
+            color: #991b1b;
+        }
+
+        .activity-status.error::before {
+            background: #dc2626;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 12px;
+            background: #f8fafc;
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        .data-table tr:hover {
+            background: #f8fafc;
+        }
+
+        /* Tags */
+        .tag {
+            padding: 4px 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #475569;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .tag.production {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Progress Ring */
+        .progress-ring {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .progress-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-circle {
+            fill: none;
+            stroke: #e5e7eb;
+            stroke-width: 8;
+        }
+
+        .progress-ring-value {
+            fill: none;
+            stroke: #2563eb;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="logo">
+                SADAB <span>Console</span>
+            </div>
+            <div class="nav-item">📊 Dashboard</div>
+            <div class="nav-item active">🖥️ Agents</div>
+            <div class="nav-item">🚀 Deployments</div>
+            <div class="nav-item">⚙️ Commands</div>
+            <div class="nav-item">📦 Inventory</div>
+            <div class="nav-item">🔒 Certificates</div>
+            <div class="nav-item">⚡ Activity Log</div>
+            <div class="nav-item">⚙️ Settings</div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Breadcrumb -->
+            <div class="breadcrumb">
+                <a href="agents-panel.html">🖥️ Agents</a>
+                <span>›</span>
+                <span>SERVER-01</span>
+            </div>
+
+            <!-- Agent Header -->
+            <div class="agent-header">
+                <div class="header-top">
+                    <div class="agent-title">
+                        <div class="agent-icon">🖥️</div>
+                        <div class="agent-name-section">
+                            <h1>SERVER-01</h1>
+                            <div class="agent-subtitle">Windows Server 2022 • 192.168.1.101</div>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <div class="status-icon online" title="Online">✓</div>
+                        <button class="btn btn-secondary btn-icon" title="Refresh">🔄</button>
+                        <button class="btn btn-primary btn-icon" title="Execute Command">⚙️</button>
+                        <button class="btn btn-danger btn-icon" title="Remove Agent">🗑️</button>
+                    </div>
+                </div>
+
+                <div class="header-stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Uptime</div>
+                        <div class="stat-value">15d 7h</div>
+                        <div class="stat-subtext">Since last restart</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Agent Version</div>
+                        <div class="stat-value">v2.1.4</div>
+                        <div class="stat-subtext">Latest version</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Last Heartbeat</div>
+                        <div class="stat-value">3s</div>
+                        <div class="stat-subtext">ago</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Commands Run</div>
+                        <div class="stat-value">247</div>
+                        <div class="stat-subtext">Total executed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('overview')">📋 Overview</button>
+                <button class="tab" onclick="showTab('performance')">📊 Performance</button>
+                <button class="tab" onclick="showTab('certificate')">🔒 Certificate</button>
+                <button class="tab" onclick="showTab('activity')">⚡ Activity</button>
+                <button class="tab" onclick="showTab('inventory')">📦 Inventory</button>
+                <button class="tab" onclick="showTab('services')">🔧 Services</button>
+            </div>
+
+            <!-- Tab Content: Overview -->
+            <div class="tab-content" id="overview-tab">
+            <!-- System Information -->
+            <div class="content-card">
+                <div class="card-title">💻 System Information</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Hostname</div>
+                        <div class="info-value">SERVER-01.contoso.local</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Operating System</div>
+                        <div class="info-value">Windows Server 2022 Datacenter</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">OS Build</div>
+                        <div class="info-value">20348.2113</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">IP Address</div>
+                        <div class="info-value"><code>192.168.1.101</code></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">MAC Address</div>
+                        <div class="info-value"><code>00:15:5D:01:02:03</code></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Domain</div>
+                        <div class="info-value">contoso.local</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Processor</div>
+                        <div class="info-value">Intel Xeon E5-2690 v4 @ 2.60GHz</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Total Memory</div>
+                        <div class="info-value">32 GB</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Agent Installation Date</div>
+                        <div class="info-value">2024-08-15 14:23:45</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Agent Version</div>
+                        <div class="info-value">v2.1.4</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Time Zone</div>
+                        <div class="info-value">UTC-05:00 (Eastern Time)</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Current Logged-in User</div>
+                        <div class="info-value">CONTOSO\administrator</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Tags</div>
+                        <div class="info-value">
+                            <span class="tag production">Production</span>
+                            <span class="tag">Web Server</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Certificate Information -->
+            <div class="content-card">
+                <div class="card-title">🔒 Certificate Information</div>
+
+                <div class="cert-warning">
+                    <div class="cert-warning-icon">⚠️</div>
+                    <div class="cert-warning-text">
+                        <div class="cert-warning-title">Certificate Expiring Soon</div>
+                        <div class="cert-warning-desc">This agent's certificate will expire in 45 days. Consider renewing soon to avoid connection issues.</div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Subject</div>
+                        <div class="info-value"><code>CN=SERVER-01.contoso.local</code></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Issuer</div>
+                        <div class="info-value">SADAB Root CA</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Valid From</div>
+                        <div class="info-value">2024-01-15 10:00:00 UTC</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Valid Until</div>
+                        <div class="info-value">2025-01-13 10:00:00 UTC</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Thumbprint</div>
+                        <div class="info-value"><code>A1B2C3D4E5F6...</code></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Serial Number</div>
+                        <div class="info-value"><code>1A:2B:3C:4D:5E</code></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Key Algorithm</div>
+                        <div class="info-value">RSA 2048-bit</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Days Until Expiry</div>
+                        <div class="info-value" style="color: #d97706; font-weight: 600;">45 days</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resource Metrics -->
+            <div class="content-card">
+                <div class="card-title">📊 Resource Metrics</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-name">CPU Usage</span>
+                        </div>
+                        <div class="metric-value">23%</div>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill low" style="width: 23%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-name">Memory Usage</span>
+                        </div>
+                        <div class="metric-value">67%</div>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill medium" style="width: 67%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-name">Disk Usage (C:)</span>
+                        </div>
+                        <div class="metric-value">45%</div>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill low" style="width: 45%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span class="metric-name">Network I/O</span>
+                        </div>
+                        <div class="metric-value">12 MB/s</div>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill low" style="width: 35%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="content-card">
+                <div class="card-title">⚡ Recent Activity</div>
+                <div class="activity-list">
+                    <div class="activity-item">
+                        <div class="activity-icon">✓</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Command Executed Successfully</div>
+                            <div class="activity-desc">Get-Service | Where Status -eq 'Running'</div>
+                            <div class="activity-time">5 minutes ago</div>
+                        </div>
+                        <span class="activity-status success">Completed</span>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">📦</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Software Deployment</div>
+                            <div class="activity-desc">Security Update KB5034441 installed</div>
+                            <div class="activity-time">2 hours ago</div>
+                        </div>
+                        <span class="activity-status success">Completed</span>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">💓</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Heartbeat Received</div>
+                            <div class="activity-desc">Agent health check completed successfully</div>
+                            <div class="activity-time">3 seconds ago</div>
+                        </div>
+                        <span class="activity-status running">Active</span>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">⚙️</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Configuration Updated</div>
+                            <div class="activity-desc">Heartbeat interval changed to 10 seconds</div>
+                            <div class="activity-time">1 day ago</div>
+                        </div>
+                        <span class="activity-status success">Completed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Interfaces -->
+            <div class="content-card">
+                <div class="card-title">🌐 Network Interfaces</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Interface</th>
+                            <th>IP Address</th>
+                            <th>MAC Address</th>
+                            <th>Status</th>
+                            <th>Speed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Ethernet 1</td>
+                            <td>192.168.1.101</td>
+                            <td>00:15:5D:01:02:03</td>
+                            <td><span class="status online">Up</span></td>
+                            <td>1 Gbps</td>
+                        </tr>
+                        <tr>
+                            <td>Ethernet 2</td>
+                            <td>10.0.0.50</td>
+                            <td>00:15:5D:01:02:04</td>
+                            <td><span class="status online">Up</span></td>
+                            <td>1 Gbps</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            </div>
+            <!-- End Overview Tab -->
+
+            <!-- Tab Content: Inventory -->
+            <div class="tab-content" id="inventory-tab" style="display: none;">
+                <!-- Installed Software -->
+                <div class="content-card">
+                    <div class="card-title">💿 Installed Software</div>
+                    <div class="search-box" style="margin-bottom: 20px; max-width: 400px;">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Search..." style="flex: 1;">
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Version</th>
+                                <th>Publisher</th>
+                                <th>Install Date</th>
+                                <th>Size</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Microsoft Office Professional Plus 2021</td>
+                                <td>16.0.14332.20481</td>
+                                <td>Microsoft Corporation</td>
+                                <td>2024-08-20</td>
+                                <td>3.2 GB</td>
+                            </tr>
+                            <tr>
+                                <td>Google Chrome</td>
+                                <td>120.0.6099.130</td>
+                                <td>Google LLC</td>
+                                <td>2024-09-15</td>
+                                <td>285 MB</td>
+                            </tr>
+                            <tr>
+                                <td>7-Zip</td>
+                                <td>23.01</td>
+                                <td>Igor Pavlov</td>
+                                <td>2024-07-10</td>
+                                <td>1.5 MB</td>
+                            </tr>
+                            <tr>
+                                <td>Visual Studio Code</td>
+                                <td>1.85.2</td>
+                                <td>Microsoft Corporation</td>
+                                <td>2024-08-05</td>
+                                <td>412 MB</td>
+                            </tr>
+                            <tr>
+                                <td>Windows Admin Center</td>
+                                <td>2311</td>
+                                <td>Microsoft Corporation</td>
+                                <td>2024-06-12</td>
+                                <td>156 MB</td>
+                            </tr>
+                            <tr>
+                                <td>IIS Web Server</td>
+                                <td>10.0.20348.1</td>
+                                <td>Microsoft Corporation</td>
+                                <td>2024-08-15</td>
+                                <td>85 MB</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Hardware Inventory -->
+                <div class="content-card">
+                    <div class="card-title">🔧 Hardware Components</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Processor</div>
+                            <div class="info-value">Intel Xeon E5-2690 v4 @ 2.60GHz (14 cores)</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Total RAM</div>
+                            <div class="info-value">32 GB DDR4 2400MHz</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Motherboard</div>
+                            <div class="info-value">Dell Inc. PowerEdge R630</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">BIOS Version</div>
+                            <div class="info-value">2.9.0 (10/15/2023)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Storage Devices -->
+                <div class="content-card">
+                    <div class="card-title">💾 Storage Devices</div>
+                    <div class="search-box" style="margin-bottom: 20px; max-width: 400px;">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Search..." style="flex: 1;">
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Drive</th>
+                                <th>Label</th>
+                                <th>File System</th>
+                                <th>Total Size</th>
+                                <th>Free Space</th>
+                                <th>Usage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>C:\</code></td>
+                                <td>System</td>
+                                <td>NTFS</td>
+                                <td>500 GB</td>
+                                <td>275 GB</td>
+                                <td>45%</td>
+                            </tr>
+                            <tr>
+                                <td><code>D:\</code></td>
+                                <td>Data</td>
+                                <td>NTFS</td>
+                                <td>1 TB</td>
+                                <td>680 GB</td>
+                                <td>32%</td>
+                            </tr>
+                            <tr>
+                                <td><code>E:\</code></td>
+                                <td>Backup</td>
+                                <td>NTFS</td>
+                                <td>2 TB</td>
+                                <td>450 GB</td>
+                                <td>78%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Installed Updates -->
+                <div class="content-card">
+                    <div class="card-title">🔄 Recent Windows Updates</div>
+                    <div class="search-box" style="margin-bottom: 20px; max-width: 400px;">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Search..." style="flex: 1;">
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>KB Article</th>
+                                <th>Title</th>
+                                <th>Install Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>KB5034441</td>
+                                <td>2024-01 Cumulative Update for Windows Server 2022</td>
+                                <td>2024-01-09</td>
+                                <td><span class="status online">Installed</span></td>
+                            </tr>
+                            <tr>
+                                <td>KB5034129</td>
+                                <td>Security Update for .NET Framework</td>
+                                <td>2024-01-08</td>
+                                <td><span class="status online">Installed</span></td>
+                            </tr>
+                            <tr>
+                                <td>KB5033118</td>
+                                <td>Security Update for Microsoft Edge</td>
+                                <td>2023-12-28</td>
+                                <td><span class="status online">Installed</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- End Inventory Tab -->
+
+            <!-- Tab Content: Services -->
+            <div class="tab-content" id="services-tab" style="display: none;">
+                <!-- Service Statistics -->
+                <div class="content-card">
+                    <div class="card-title">📊 Service Statistics</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Total Services</div>
+                            <div class="info-value">245</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Running Services</div>
+                            <div class="info-value" style="color: #10b981;">87</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Stopped Services</div>
+                            <div class="info-value" style="color: #666;">158</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Automatic Services</div>
+                            <div class="info-value">52</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Service Errors</div>
+                            <div class="info-value" style="color: #dc2626;">1</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Running Services -->
+                <div class="content-card">
+                    <div class="card-title">🔧 Windows Services</div>
+                    <div class="search-box" style="margin-bottom: 20px; max-width: 400px;">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Search..." style="flex: 1;">
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Service Name</th>
+                                <th>Display Name</th>
+                                <th>Status</th>
+                                <th>Startup Type</th>
+                                <th>Account</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>W3SVC</code></td>
+                                <td>World Wide Web Publishing Service</td>
+                                <td><span class="status online">Running</span></td>
+                                <td>Automatic</td>
+                                <td>LocalSystem</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">⏸️ Stop</button>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">🔄 Restart</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>MSSQLSERVER</code></td>
+                                <td>SQL Server (MSSQLSERVER)</td>
+                                <td><span class="status online">Running</span></td>
+                                <td>Automatic</td>
+                                <td>NT Service\MSSQLSERVER</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">⏸️ Stop</button>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">🔄 Restart</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>EventLog</code></td>
+                                <td>Windows Event Log</td>
+                                <td><span class="status online">Running</span></td>
+                                <td>Automatic</td>
+                                <td>LocalSystem</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">⏸️ Stop</button>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">🔄 Restart</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>Dnscache</code></td>
+                                <td>DNS Client</td>
+                                <td><span class="status online">Running</span></td>
+                                <td>Automatic</td>
+                                <td>NT AUTHORITY\NetworkService</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">⏸️ Stop</button>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">🔄 Restart</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>Spooler</code></td>
+                                <td>Print Spooler</td>
+                                <td><span class="activity-status stopped">Stopped</span></td>
+                                <td>Manual</td>
+                                <td>LocalSystem</td>
+                                <td>
+                                    <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">▶️ Start</button>
+                                </td>
+                            </tr>
+                            <tr style="background: #fef2f2;">
+                                <td><code>BITS</code></td>
+                                <td>Background Intelligent Transfer Service</td>
+                                <td><span class="activity-status error">Stopped</span></td>
+                                <td>Automatic</td>
+                                <td>LocalSystem</td>
+                                <td>
+                                    <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">▶️ Start</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>wuauserv</code></td>
+                                <td>Windows Update</td>
+                                <td><span class="status online">Running</span></td>
+                                <td>Manual (Triggered)</td>
+                                <td>LocalSystem</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">⏸️ Stop</button>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">🔄 Restart</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>RemoteRegistry</code></td>
+                                <td>Remote Registry</td>
+                                <td><span class="activity-status stopped">Stopped</span></td>
+                                <td>Disabled</td>
+                                <td>NT AUTHORITY\LocalService</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;" disabled>▶️ Start</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>Schedule</code></td>
+                                <td>Task Scheduler</td>
+                                <td><span class="status online">Running</span></td>
+                                <td>Automatic</td>
+                                <td>LocalSystem</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">⏸️ Stop</button>
+                                    <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">🔄 Restart</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- End Services Tab -->
+
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => {
+                content.style.display = 'none';
+            });
+
+            // Remove active class from all tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab content
+            const selectedTab = document.getElementById(tabName + '-tab');
+            if (selectedTab) {
+                selectedTab.style.display = 'block';
+            }
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

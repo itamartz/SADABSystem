@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SADAB - Agents Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .logo span {
+            color: #60a5fa;
+        }
+
+        .nav-item {
+            padding: 12px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .nav-item.active {
+            background: rgba(96, 165, 250, 0.3);
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-x: hidden;
+            max-width: 100%;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #1e3a8a;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #60a5fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 8px 12px;
+            min-width: 300px;
+        }
+
+        .search-box input {
+            border: none;
+            background: none;
+            outline: none;
+            margin-left: 8px;
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1e40af;
+        }
+
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #475569;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stat-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .stat-icon.online {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .stat-icon.offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .stat-icon.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .stat-icon.total {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+
+        /* Agents Grid */
+        .agents-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            max-width: 100%;
+            min-height: 600px;
+            position: relative;
+        }
+
+        .agents-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .agents-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 5px;
+            background: #f8fafc;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .view-btn {
+            padding: 6px 12px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
+            gap: 20px;
+            width: 100%;
+        }
+
+        .agent-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+
+        .agent-card:hover {
+            border-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .agent-card.offline {
+            border-color: #fee2e2;
+            background: #fef2f2;
+        }
+
+        .agent-card.warning {
+            border-color: #fef3c7;
+            background: #fffbeb;
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .agent-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e3a8a;
+            margin-bottom: 5px;
+        }
+
+        .agent-id {
+            font-size: 11px;
+            color: #666;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .agent-id.expiring-soon {
+            color: #d97706;
+            font-weight: 600;
+        }
+
+        .agent-id.expired {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status.online {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status.offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .agent-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            font-size: 13px;
+        }
+
+        .info-label {
+            color: #666;
+            display: block;
+            font-size: 11px;
+            margin-bottom: 3px;
+        }
+
+        .info-value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .agent-metrics {
+            display: flex;
+            gap: 15px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .metric {
+            flex: 1;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+
+        .metric-label {
+            font-size: 10px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .agent-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .action-btn:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: white;
+        }
+
+        .heartbeat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .heartbeat-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        .heartbeat-dot.offline {
+            background: #ef4444;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Tags */
+        .agent-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .tag {
+            padding: 4px 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #475569;
+        }
+
+        .tag.production {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .tag.development {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        /* List View Styles */
+        .agents-list {
+            display: none;
+            overflow-x: auto;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            width: 100%;
+        }
+
+        .agents-list.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+
+        .agents-grid {
+            opacity: 1;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .agents-grid.hidden {
+            display: none;
+        }
+
+        .agents-grid.active {
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .agents-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+
+        .agents-table thead {
+            background: #f8fafc;
+            position: sticky;
+            top: 0;
+        }
+
+        .agents-table th {
+            text-align: left;
+            padding: 12px 15px;
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .agents-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        .agents-table tbody tr {
+            transition: all 0.2s;
+        }
+
+        .agents-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .agents-table tbody tr.offline {
+            background: #fef2f2;
+        }
+
+        .agents-table tbody tr.warning {
+            background: #fffbeb;
+        }
+
+        .agent-name-cell {
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+
+        .agent-id-cell {
+            font-size: 11px;
+            color: #666;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin-top: 3px;
+        }
+
+        .agent-id-cell.expiring-soon {
+            color: #d97706;
+            font-weight: 600;
+        }
+
+        .agent-id-cell.expired {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .metrics-cell {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .metric-item-value {
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+
+        .metric-item-label {
+            font-size: 10px;
+            color: #666;
+        }
+
+        .list-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .list-action-btn {
+            padding: 5px 10px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .list-action-btn:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: white;
+        }
+
+        .tags-cell {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="logo">
+                SADAB <span>Console</span>
+            </div>
+            <div class="nav-item">📊 Dashboard</div>
+            <div class="nav-item active">🖥️ Agents</div>
+            <div class="nav-item">🚀 Deployments</div>
+            <div class="nav-item">⚙️ Commands</div>
+            <div class="nav-item">📦 Inventory</div>
+            <div class="nav-item">🔒 Certificates</div>
+            <div class="nav-item">⚡ Activity Log</div>
+            <div class="nav-item">⚙️ Settings</div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <h1>🖥️ Agents Management</h1>
+                <div class="user-info">
+                    <span>Admin User</span>
+                    <div class="avatar">AU</div>
+                </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="search-box">
+                    <span>🔍</span>
+                    <input type="text" placeholder="Search agents by name, IP, or OS...">
+                </div>
+                <div class="filter-group">
+                    <select class="filter-select">
+                        <option>All Status</option>
+                        <option>Online</option>
+                        <option>Offline</option>
+                        <option>Warning</option>
+                    </select>
+                    <select class="filter-select">
+                        <option>All OS</option>
+                        <option>Windows</option>
+                        <option>Linux</option>
+                        <option>macOS</option>
+                    </select>
+                    <button class="btn btn-secondary">🔄 Refresh All</button>
+                    <button class="btn btn-primary">+ Add Agent</button>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-icon total">🖥️</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Total Agents</div>
+                        <div class="stat-value">14</div>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon online">✓</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Online</div>
+                        <div class="stat-value">12</div>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon offline">✕</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Offline</div>
+                        <div class="stat-value">2</div>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon warning">⚠</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Warnings</div>
+                        <div class="stat-value">1</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agents Container -->
+            <div class="agents-container">
+                <div class="agents-header">
+                    <div class="agents-title">Registered Agents (14)</div>
+                    <div class="view-toggle">
+                        <button class="view-btn active" onclick="switchView('grid')">📇 Grid</button>
+                        <button class="view-btn" onclick="switchView('list')">📋 List</button>
+                    </div>
+                </div>
+
+                <!-- Agents Grid -->
+                <div class="agents-grid active">
+                    <!-- Agent Card 1 -->
+                    <div class="agent-card">
+                        <div class="agent-header">
+                            <div>
+                                <div class="agent-name">SERVER-01</div>
+                                <div class="agent-id">📜 Certificate expires in 45 days</div>
+                            </div>
+                            <span class="status online">Online</span>
+                        </div>
+                        <div class="agent-info">
+                            <div class="info-item">
+                                <span class="info-label">IP Address</span>
+                                <span class="info-value">192.168.1.101</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">OS Version</span>
+                                <span class="info-value">Win Server 2022</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Agent Version</span>
+                                <span class="info-value">v2.1.4</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Uptime</span>
+                                <span class="info-value">15d 7h 23m</span>
+                            </div>
+                        </div>
+                        <div class="agent-metrics">
+                            <div class="metric">
+                                <div class="metric-value">23%</div>
+                                <div class="metric-label">CPU</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">67%</div>
+                                <div class="metric-label">MEMORY</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">45%</div>
+                                <div class="metric-label">DISK</div>
+                            </div>
+                        </div>
+                        <div class="agent-actions">
+                            <button class="action-btn">📊 Details</button>
+                            <button class="action-btn">⚙️ Execute</button>
+                            <button class="action-btn">🔧 Configure</button>
+                        </div>
+                        <div class="heartbeat">
+                            <div class="heartbeat-dot"></div>
+                            <span>Last heartbeat: 3 seconds ago</span>
+                        </div>
+                        <div class="agent-tags">
+                            <span class="tag production">Production</span>
+                            <span class="tag">Web Server</span>
+                        </div>
+                    </div>
+
+                    <!-- Agent Card 2 -->
+                    <div class="agent-card">
+                        <div class="agent-header">
+                            <div>
+                                <div class="agent-name">SERVER-02</div>
+                                <div class="agent-id">📜 Certificate expires in 120 days</div>
+                            </div>
+                            <span class="status online">Online</span>
+                        </div>
+                        <div class="agent-info">
+                            <div class="info-item">
+                                <span class="info-label">IP Address</span>
+                                <span class="info-value">192.168.1.102</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">OS Version</span>
+                                <span class="info-value">Win Server 2019</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Agent Version</span>
+                                <span class="info-value">v2.1.4</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Uptime</span>
+                                <span class="info-value">8d 12h 45m</span>
+                            </div>
+                        </div>
+                        <div class="agent-metrics">
+                            <div class="metric">
+                                <div class="metric-value">15%</div>
+                                <div class="metric-label">CPU</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">52%</div>
+                                <div class="metric-label">MEMORY</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">38%</div>
+                                <div class="metric-label">DISK</div>
+                            </div>
+                        </div>
+                        <div class="agent-actions">
+                            <button class="action-btn">📊 Details</button>
+                            <button class="action-btn">⚙️ Execute</button>
+                            <button class="action-btn">🔧 Configure</button>
+                        </div>
+                        <div class="heartbeat">
+                            <div class="heartbeat-dot"></div>
+                            <span>Last heartbeat: 5 seconds ago</span>
+                        </div>
+                        <div class="agent-tags">
+                            <span class="tag production">Production</span>
+                            <span class="tag">Database</span>
+                        </div>
+                    </div>
+
+                    <!-- Agent Card 3 -->
+                    <div class="agent-card">
+                        <div class="agent-header">
+                            <div>
+                                <div class="agent-name">WS-ADMIN-001</div>
+                                <div class="agent-id expiring-soon">📜 Certificate expires in 15 days</div>
+                            </div>
+                            <span class="status online">Online</span>
+                        </div>
+                        <div class="agent-info">
+                            <div class="info-item">
+                                <span class="info-label">IP Address</span>
+                                <span class="info-value">192.168.1.201</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">OS Version</span>
+                                <span class="info-value">Windows 11 Pro</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Agent Version</span>
+                                <span class="info-value">v2.1.3</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Uptime</span>
+                                <span class="info-value">3d 4h 12m</span>
+                            </div>
+                        </div>
+                        <div class="agent-metrics">
+                            <div class="metric">
+                                <div class="metric-value">42%</div>
+                                <div class="metric-label">CPU</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">78%</div>
+                                <div class="metric-label">MEMORY</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">62%</div>
+                                <div class="metric-label">DISK</div>
+                            </div>
+                        </div>
+                        <div class="agent-actions">
+                            <button class="action-btn">📊 Details</button>
+                            <button class="action-btn">⚙️ Execute</button>
+                            <button class="action-btn">🔧 Configure</button>
+                        </div>
+                        <div class="heartbeat">
+                            <div class="heartbeat-dot"></div>
+                            <span>Last heartbeat: 7 seconds ago</span>
+                        </div>
+                        <div class="agent-tags">
+                            <span class="tag development">Development</span>
+                            <span class="tag">Workstation</span>
+                        </div>
+                    </div>
+
+                    <!-- Agent Card 4 - Offline -->
+                    <div class="agent-card offline">
+                        <div class="agent-header">
+                            <div>
+                                <div class="agent-name">DB-SERVER-01</div>
+                                <div class="agent-id">📜 Certificate expires in 90 days</div>
+                            </div>
+                            <span class="status offline">Offline</span>
+                        </div>
+                        <div class="agent-info">
+                            <div class="info-item">
+                                <span class="info-label">IP Address</span>
+                                <span class="info-value">192.168.1.50</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">OS Version</span>
+                                <span class="info-value">Ubuntu 22.04</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Agent Version</span>
+                                <span class="info-value">v2.1.2</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Last Seen</span>
+                                <span class="info-value">2h 15m ago</span>
+                            </div>
+                        </div>
+                        <div class="agent-metrics">
+                            <div class="metric">
+                                <div class="metric-value">--</div>
+                                <div class="metric-label">CPU</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">--</div>
+                                <div class="metric-label">MEMORY</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">--</div>
+                                <div class="metric-label">DISK</div>
+                            </div>
+                        </div>
+                        <div class="agent-actions">
+                            <button class="action-btn">📊 Details</button>
+                            <button class="action-btn">🔄 Reconnect</button>
+                            <button class="action-btn">🔧 Configure</button>
+                        </div>
+                        <div class="heartbeat">
+                            <div class="heartbeat-dot offline"></div>
+                            <span>Connection lost: 2 hours 15 minutes ago</span>
+                        </div>
+                        <div class="agent-tags">
+                            <span class="tag production">Production</span>
+                            <span class="tag">Database</span>
+                            <span class="tag">Linux</span>
+                        </div>
+                    </div>
+
+                    <!-- Agent Card 5 -->
+                    <div class="agent-card">
+                        <div class="agent-header">
+                            <div>
+                                <div class="agent-name">APP-SERVER-03</div>
+                                <div class="agent-id">📜 Certificate expires in 180 days</div>
+                            </div>
+                            <span class="status online">Online</span>
+                        </div>
+                        <div class="agent-info">
+                            <div class="info-item">
+                                <span class="info-label">IP Address</span>
+                                <span class="info-value">192.168.1.103</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">OS Version</span>
+                                <span class="info-value">Win Server 2022</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Agent Version</span>
+                                <span class="info-value">v2.1.4</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Uptime</span>
+                                <span class="info-value">22d 3h 56m</span>
+                            </div>
+                        </div>
+                        <div class="agent-metrics">
+                            <div class="metric">
+                                <div class="metric-value">18%</div>
+                                <div class="metric-label">CPU</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">55%</div>
+                                <div class="metric-label">MEMORY</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">71%</div>
+                                <div class="metric-label">DISK</div>
+                            </div>
+                        </div>
+                        <div class="agent-actions">
+                            <button class="action-btn">📊 Details</button>
+                            <button class="action-btn">⚙️ Execute</button>
+                            <button class="action-btn">🔧 Configure</button>
+                        </div>
+                        <div class="heartbeat">
+                            <div class="heartbeat-dot"></div>
+                            <span>Last heartbeat: 4 seconds ago</span>
+                        </div>
+                        <div class="agent-tags">
+                            <span class="tag production">Production</span>
+                            <span class="tag">Application</span>
+                        </div>
+                    </div>
+
+                    <!-- Agent Card 6 -->
+                    <div class="agent-card warning">
+                        <div class="agent-header">
+                            <div>
+                                <div class="agent-name">WEB-PROXY-01</div>
+                                <div class="agent-id expiring-soon">📜 Certificate expires in 7 days</div>
+                            </div>
+                            <span class="status warning">Warning</span>
+                        </div>
+                        <div class="agent-info">
+                            <div class="info-item">
+                                <span class="info-label">IP Address</span>
+                                <span class="info-value">192.168.1.10</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">OS Version</span>
+                                <span class="info-value">Ubuntu 22.04</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Agent Version</span>
+                                <span class="info-value">v2.0.9</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Uptime</span>
+                                <span class="info-value">45d 11h 30m</span>
+                            </div>
+                        </div>
+                        <div class="agent-metrics">
+                            <div class="metric">
+                                <div class="metric-value">89%</div>
+                                <div class="metric-label">CPU</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">91%</div>
+                                <div class="metric-label">MEMORY</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">85%</div>
+                                <div class="metric-label">DISK</div>
+                            </div>
+                        </div>
+                        <div class="agent-actions">
+                            <button class="action-btn">📊 Details</button>
+                            <button class="action-btn">⚙️ Execute</button>
+                            <button class="action-btn">⬆️ Update</button>
+                        </div>
+                        <div class="heartbeat">
+                            <div class="heartbeat-dot"></div>
+                            <span>Last heartbeat: 12 seconds ago</span>
+                        </div>
+                        <div class="agent-tags">
+                            <span class="tag production">Production</span>
+                            <span class="tag">Proxy</span>
+                            <span class="tag">Outdated</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agents List View -->
+                <div class="agents-list">
+                    <table class="agents-table">
+                        <thead>
+                            <tr>
+                                <th>Agent Name</th>
+                                <th>IP Address</th>
+                                <th>OS Version</th>
+                                <th>Status</th>
+                                <th>Metrics (CPU/MEM/DISK)</th>
+                                <th>Last Heartbeat</th>
+                                <th>Tags</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="agent-name-cell">SERVER-01</div>
+                                    <div class="agent-id-cell">📜 Certificate expires in 45 days</div>
+                                </td>
+                                <td>192.168.1.101</td>
+                                <td>Win Server 2022</td>
+                                <td><span class="status online">Online</span></td>
+                                <td>
+                                    <div class="metrics-cell">
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">23%</span>
+                                            <span class="metric-item-label">CPU</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">67%</span>
+                                            <span class="metric-item-label">MEM</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">45%</span>
+                                            <span class="metric-item-label">DISK</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>3 seconds ago</td>
+                                <td>
+                                    <div class="tags-cell">
+                                        <span class="tag production">Production</span>
+                                        <span class="tag">Web Server</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="list-actions">
+                                        <button class="list-action-btn">📊 Details</button>
+                                        <button class="list-action-btn">⚙️ Execute</button>
+                                        <button class="list-action-btn">🔧 Config</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="agent-name-cell">SERVER-02</div>
+                                    <div class="agent-id-cell">📜 Certificate expires in 120 days</div>
+                                </td>
+                                <td>192.168.1.102</td>
+                                <td>Win Server 2019</td>
+                                <td><span class="status online">Online</span></td>
+                                <td>
+                                    <div class="metrics-cell">
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">15%</span>
+                                            <span class="metric-item-label">CPU</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">52%</span>
+                                            <span class="metric-item-label">MEM</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">38%</span>
+                                            <span class="metric-item-label">DISK</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>5 seconds ago</td>
+                                <td>
+                                    <div class="tags-cell">
+                                        <span class="tag production">Production</span>
+                                        <span class="tag">Database</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="list-actions">
+                                        <button class="list-action-btn">📊 Details</button>
+                                        <button class="list-action-btn">⚙️ Execute</button>
+                                        <button class="list-action-btn">🔧 Config</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="agent-name-cell">WS-ADMIN-001</div>
+                                    <div class="agent-id-cell expiring-soon">📜 Certificate expires in 15 days</div>
+                                </td>
+                                <td>192.168.1.201</td>
+                                <td>Windows 11 Pro</td>
+                                <td><span class="status online">Online</span></td>
+                                <td>
+                                    <div class="metrics-cell">
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">42%</span>
+                                            <span class="metric-item-label">CPU</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">78%</span>
+                                            <span class="metric-item-label">MEM</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">62%</span>
+                                            <span class="metric-item-label">DISK</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>7 seconds ago</td>
+                                <td>
+                                    <div class="tags-cell">
+                                        <span class="tag development">Development</span>
+                                        <span class="tag">Workstation</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="list-actions">
+                                        <button class="list-action-btn">📊 Details</button>
+                                        <button class="list-action-btn">⚙️ Execute</button>
+                                        <button class="list-action-btn">🔧 Config</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="offline">
+                                <td>
+                                    <div class="agent-name-cell">DB-SERVER-01</div>
+                                    <div class="agent-id-cell">📜 Certificate expires in 90 days</div>
+                                </td>
+                                <td>192.168.1.50</td>
+                                <td>Ubuntu 22.04</td>
+                                <td><span class="status offline">Offline</span></td>
+                                <td>
+                                    <div class="metrics-cell">
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">--</span>
+                                            <span class="metric-item-label">CPU</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">--</span>
+                                            <span class="metric-item-label">MEM</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">--</span>
+                                            <span class="metric-item-label">DISK</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>2h 15m ago</td>
+                                <td>
+                                    <div class="tags-cell">
+                                        <span class="tag production">Production</span>
+                                        <span class="tag">Database</span>
+                                        <span class="tag">Linux</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="list-actions">
+                                        <button class="list-action-btn">📊 Details</button>
+                                        <button class="list-action-btn">🔄 Reconnect</button>
+                                        <button class="list-action-btn">🔧 Config</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="agent-name-cell">APP-SERVER-03</div>
+                                    <div class="agent-id-cell">📜 Certificate expires in 180 days</div>
+                                </td>
+                                <td>192.168.1.103</td>
+                                <td>Win Server 2022</td>
+                                <td><span class="status online">Online</span></td>
+                                <td>
+                                    <div class="metrics-cell">
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">18%</span>
+                                            <span class="metric-item-label">CPU</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">55%</span>
+                                            <span class="metric-item-label">MEM</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">71%</span>
+                                            <span class="metric-item-label">DISK</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>4 seconds ago</td>
+                                <td>
+                                    <div class="tags-cell">
+                                        <span class="tag production">Production</span>
+                                        <span class="tag">Application</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="list-actions">
+                                        <button class="list-action-btn">📊 Details</button>
+                                        <button class="list-action-btn">⚙️ Execute</button>
+                                        <button class="list-action-btn">🔧 Config</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="warning">
+                                <td>
+                                    <div class="agent-name-cell">WEB-PROXY-01</div>
+                                    <div class="agent-id-cell expiring-soon">📜 Certificate expires in 7 days</div>
+                                </td>
+                                <td>192.168.1.10</td>
+                                <td>Ubuntu 22.04</td>
+                                <td><span class="status warning">Warning</span></td>
+                                <td>
+                                    <div class="metrics-cell">
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">89%</span>
+                                            <span class="metric-item-label">CPU</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">91%</span>
+                                            <span class="metric-item-label">MEM</span>
+                                        </div>
+                                        <div class="metric-item">
+                                            <span class="metric-item-value">85%</span>
+                                            <span class="metric-item-label">DISK</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>12 seconds ago</td>
+                                <td>
+                                    <div class="tags-cell">
+                                        <span class="tag production">Production</span>
+                                        <span class="tag">Proxy</span>
+                                        <span class="tag">Outdated</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="list-actions">
+                                        <button class="list-action-btn">📊 Details</button>
+                                        <button class="list-action-btn">⚙️ Execute</button>
+                                        <button class="list-action-btn">⬆️ Update</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchView(view) {
+            const gridView = document.querySelector('.agents-grid');
+            const listView = document.querySelector('.agents-list');
+            const gridBtn = document.querySelector('.view-btn:first-child');
+            const listBtn = document.querySelector('.view-btn:last-child');
+
+            if (view === 'grid') {
+                // Fade out list view
+                listView.style.opacity = '0';
+
+                setTimeout(() => {
+                    gridView.classList.remove('hidden');
+                    gridView.classList.add('active');
+                    listView.classList.remove('active');
+                    gridBtn.classList.add('active');
+                    listBtn.classList.remove('active');
+                }, 150);
+            } else if (view === 'list') {
+                // Fade out grid view
+                gridView.style.opacity = '0';
+
+                setTimeout(() => {
+                    gridView.classList.add('hidden');
+                    gridView.classList.remove('active');
+                    listView.classList.add('active');
+                    gridBtn.classList.remove('active');
+                    listBtn.classList.add('active');
+                }, 150);
+            }
+        }
+    </script>
+</body>
+</html>
