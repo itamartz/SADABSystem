@@ -42,6 +42,8 @@ public class AgentDto
     public DateTime LastHeartbeat { get; set; }
     public DateTime RegisteredAt { get; set; }
     public DateTime? CertificateExpiresAt { get; set; }
+    public double? CpuUsagePercent { get; set; }
+    public double? MemoryUsagePercent { get; set; }
 
     /// <summary>
     /// Returns a string representation with all properties in Key=Value format using reflection.

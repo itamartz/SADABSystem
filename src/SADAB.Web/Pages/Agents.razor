@@ -117,14 +117,14 @@
                         </div>
                     </div>
 
-                    @* Placeholder Metrics (will be populated from SystemInfo in future) *@
+                    @* System Metrics *@
                     <div class="agent-metrics">
                         <div class="metric">
-                            <div class="metric-value">--</div>
+                            <div class="metric-value">@GetMetricDisplay(agent.CpuUsagePercent)</div>
                             <div class="metric-label">CPU</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-value">--</div>
+                            <div class="metric-value">@GetMetricDisplay(agent.MemoryUsagePercent)</div>
                             <div class="metric-label">MEMORY</div>
                         </div>
                         <div class="metric">
@@ -318,6 +318,17 @@
             return $"{(int)timeSpan.TotalMinutes} minute{((int)timeSpan.TotalMinutes == 1 ? "" : "s")} ago";
 
         return $"{(int)timeSpan.TotalSeconds} second{((int)timeSpan.TotalSeconds == 1 ? "" : "s")} ago";
+    }
+
+    /// <summary>
+    /// Formats metric percentage for display
+    /// </summary>
+    private string GetMetricDisplay(double? percentage)
+    {
+        if (!percentage.HasValue || percentage.Value < 0)
+            return "--";
+
+        return $"{percentage.Value:F1}%";
     }
 
     // ============================================================================

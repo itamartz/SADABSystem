@@ -143,6 +143,25 @@ public class AgentsController : ControllerBase
                 agent.IpAddress = request.IpAddress;
             }
 
+            // Update OperatingSystem and SystemInfo from request
+            if (request.SystemInfo != null)
+            {
+                // Update OS Version
+                if (request.SystemInfo.ContainsKey("OSVersion"))
+                {
+                    var osVersion = request.SystemInfo["OSVersion"]?.ToString();
+                    if (!string.IsNullOrEmpty(osVersion))
+                    {
+                        agent.OperatingSystem = osVersion;
+                        _logger.LogDebug("Updated agent {AgentId} OS version to {OSVersion}", agentId, osVersion);
+                    }
+                }
+
+                // Store entire SystemInfo in Metadata JSON field
+                agent.Metadata = JsonSerializer.Serialize(request.SystemInfo);
+                _logger.LogDebug("Updated agent {AgentId} metadata with SystemInfo", agentId);
+            }
+
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Agent {agent} heartbeat processed successfully", agent);
@@ -232,7 +251,47 @@ public class AgentsController : ControllerBase
         {
             var agents = await _context.Agents
                 .OrderByDescending(a => a.LastHeartbeat)
-                .Select(a => new AgentDto
+                .ToListAsync();
+
+            var agentDtos = agents.Select(a =>
+            {
+                double? cpuUsage = null;
+                double? memoryUsage = null;
+
+                // Extract CPU and Memory from Metadata JSON
+                if (!string.IsNullOrEmpty(a.Metadata))
+                {
+                    try
+                    {
+                        var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(a.Metadata);
+                        if (metadata != null)
+                        {
+                            if (metadata.ContainsKey("CpuUsagePercent"))
+                            {
+                                var cpuValue = metadata["CpuUsagePercent"];
+                                if (cpuValue != null && double.TryParse(cpuValue.ToString(), out var cpu) && cpu >= 0)
+                                {
+                                    cpuUsage = cpu;
+                                }
+                            }
+
+                            if (metadata.ContainsKey("MemoryUsagePercent"))
+                            {
+                                var memValue = metadata["MemoryUsagePercent"];
+                                if (memValue != null && double.TryParse(memValue.ToString(), out var mem) && mem >= 0)
+                                {
+                                    memoryUsage = mem;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error parsing metadata for agent {AgentId}", a.Id);
+                    }
+                }
+
+                return new AgentDto
                 {
                     Id = a.Id,
                     MachineName = a.MachineName,
@@ -242,11 +301,13 @@ public class AgentsController : ControllerBase
                     Status = a.Status,
                     LastHeartbeat = a.LastHeartbeat,
                     RegisteredAt = a.RegisteredAt,
-                    CertificateExpiresAt = a.CertificateExpiresAt
-                })
-                .ToListAsync();
+                    CertificateExpiresAt = a.CertificateExpiresAt,
+                    CpuUsagePercent = cpuUsage,
+                    MemoryUsagePercent = memoryUsage
+                };
+            }).ToList();
 
-            return Ok(agents);
+            return Ok(agentDtos);
         }
         catch (Exception ex)
         {
@@ -267,6 +328,42 @@ public class AgentsController : ControllerBase
                 return NotFound();
             }
 
+            double? cpuUsage = null;
+            double? memoryUsage = null;
+
+            // Extract CPU and Memory from Metadata JSON
+            if (!string.IsNullOrEmpty(agent.Metadata))
+            {
+                try
+                {
+                    var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(agent.Metadata);
+                    if (metadata != null)
+                    {
+                        if (metadata.ContainsKey("CpuUsagePercent"))
+                        {
+                            var cpuValue = metadata["CpuUsagePercent"];
+                            if (cpuValue != null && double.TryParse(cpuValue.ToString(), out var cpu) && cpu >= 0)
+                            {
+                                cpuUsage = cpu;
+                            }
+                        }
+
+                        if (metadata.ContainsKey("MemoryUsagePercent"))
+                        {
+                            var memValue = metadata["MemoryUsagePercent"];
+                            if (memValue != null && double.TryParse(memValue.ToString(), out var mem) && mem >= 0)
+                            {
+                                memoryUsage = mem;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing metadata for agent {AgentId}", id);
+                }
+            }
+
             return Ok(new AgentDto
             {
                 Id = agent.Id,
@@ -277,7 +374,9 @@ public class AgentsController : ControllerBase
                 Status = agent.Status,
                 LastHeartbeat = agent.LastHeartbeat,
                 RegisteredAt = agent.RegisteredAt,
-                CertificateExpiresAt = agent.CertificateExpiresAt
+                CertificateExpiresAt = agent.CertificateExpiresAt,
+                CpuUsagePercent = cpuUsage,
+                MemoryUsagePercent = memoryUsage
             });
         }
         catch (Exception ex)
