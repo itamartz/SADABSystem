@@ -387,7 +387,7 @@ public class Worker : BackgroundService
             {
                 if (_configuration.CertificateExpiresAt.HasValue)
                 {
-                    var daysUntilExpiry = (_configuration.CertificateExpiresAt.Value - DateTime.UtcNow).TotalDays;
+                    var daysUntilExpiry = (_configuration.CertificateExpiresAt.Value - DateTime.Now).TotalDays;
 
                     // Refresh certificate based on configured threshold
                     if (daysUntilExpiry <= _certificateRefreshThresholdDays)

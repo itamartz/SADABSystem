@@ -56,7 +56,7 @@ public class AgentsController : ControllerBase
                 agent.OperatingSystem = request.OperatingSystem;
                 agent.IpAddress = request.IpAddress;
                 agent.Status = AgentStatus.Online;
-                agent.LastHeartbeat = DateTime.UtcNow;
+                agent.LastHeartbeat = DateTime.Now;
 
                 if (request.Metadata != null)
                 {
@@ -76,8 +76,8 @@ public class AgentsController : ControllerBase
                     OperatingSystem = request.OperatingSystem,
                     IpAddress = request.IpAddress,
                     Status = AgentStatus.Online,
-                    LastHeartbeat = DateTime.UtcNow,
-                    RegisteredAt = DateTime.UtcNow,
+                    LastHeartbeat = DateTime.Now,
+                    RegisteredAt = DateTime.Now,
                     Metadata = request.Metadata != null ? JsonSerializer.Serialize(request.Metadata) : null
                 };
 

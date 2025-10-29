@@ -85,14 +85,14 @@ public class CertificateStorageService : ICertificateStorageService
             var cert = X509Certificate2.CreateFromPem(certContent);
 
             // Check if certificate is expired
-            if (cert.NotAfter < DateTime.UtcNow)
+            if (cert.NotAfter < DateTime.Now)
             {
                 _logger.LogWarning("Certificate has expired: {ExpiryDate}", cert.NotAfter);
                 return false;
             }
 
             // Check if certificate will expire soon (within 7 days)
-            if (cert.NotAfter < DateTime.UtcNow.AddDays(7))
+            if (cert.NotAfter < DateTime.Now.AddDays(7))
             {
                 _logger.LogWarning("Certificate will expire soon: {ExpiryDate}", cert.NotAfter);
             }

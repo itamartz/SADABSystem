@@ -52,7 +52,7 @@ public class CommandsController : ControllerBase
                     RunAsAdmin = request.RunAsAdmin,
                     TimeoutMinutes = request.TimeoutMinutes,
                     Status = CommandExecutionStatus.Pending,
-                    RequestedAt = DateTime.UtcNow,
+                    RequestedAt = DateTime.Now,
                     RequestedBy = userName
                 };
 
@@ -186,7 +186,7 @@ public class CommandsController : ControllerBase
                 if (execution != null)
                 {
                     execution.Status = CommandExecutionStatus.Running;
-                    execution.StartedAt = DateTime.UtcNow;
+                    execution.StartedAt = DateTime.Now;
                 }
             }
 
@@ -220,7 +220,7 @@ public class CommandsController : ControllerBase
             }
 
             execution.Status = resultDto.Status;
-            execution.CompletedAt = resultDto.CompletedAt ?? DateTime.UtcNow;
+            execution.CompletedAt = resultDto.CompletedAt ?? DateTime.Now;
             execution.ExitCode = resultDto.ExitCode;
             execution.Output = resultDto.Output;
             execution.ErrorOutput = resultDto.ErrorOutput;
