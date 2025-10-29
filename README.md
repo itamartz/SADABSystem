@@ -2,6 +2,13 @@
 
 A comprehensive client-server application for software deployment and inventory management, similar to PDQ Deploy and Inventory.
 
+#### Dashboard
+<img width="2560" height="1347" alt="image" src="https://github.com/user-attachments/assets/ed2dc89b-dbf9-4f02-93e4-093c24e8a49d" />
+
+#### Agents
+<img width="2560" height="1347" alt="image" src="https://github.com/user-attachments/assets/e296d5bc-29d0-4fbb-85c4-9e3116682867" />
+
+
 ## Features
 
 ### Server (REST API)
