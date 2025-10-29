@@ -26,17 +26,12 @@
 *@
 
 @page "/"
-@using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.Extensions.Options
-@using SADAB.Shared.DTOs
-@using SADAB.Shared.Enums
 @using SADAB.Web.Settings
 @inject IAgentService AgentService
 @inject IDeploymentService DeploymentService
 @inject ICommandService CommandService
-@inject IConfiguration Configuration
 @inject IOptionsMonitor<DashboardSettings> DashboardSettingsMonitor
-@inject ILogger<Index> Logger
 @implements IDisposable
 
 <PageTitle>Dashboard - SADAB</PageTitle>
@@ -297,7 +292,6 @@
 
     /// <summary>
     /// Timer for automatic dashboard refresh. Triggers data reload at regular intervals.
-    /// Only used as fallback when SignalR is disconnected.
     /// </summary>
     private Timer? refreshTimer;
 
@@ -305,23 +299,6 @@
     /// Listener for configuration changes. Allows updating refresh interval without restarting.
     /// </summary>
     private IDisposable? settingsChangeListener;
-
-    /// <summary>
-    /// SignalR hub connection for real-time agent updates.
-    /// Receives "AgentUpdated" messages from the server.
-    /// </summary>
-    private HubConnection? _hubConnection;
-
-    /// <summary>
-    /// Tracks whether SignalR is currently connected.
-    /// When false, fallback timer takes over.
-    /// </summary>
-    private bool _isSignalRConnected;
-
-    /// <summary>
-    /// Last time an update was received (for monitoring).
-    /// </summary>
-    private DateTime _lastUpdateTime = DateTime.Now;
 
     // ============================================================================
     // Computed Properties for Statistics
@@ -360,23 +337,20 @@
     /// <summary>
     /// Blazor lifecycle method called when the component is initialized.
     /// Loads all dashboard data from API services on initial page load.
-    /// Sets up SignalR connection for real-time updates and fallback timer.
+    /// Sets up automatic refresh timer based on configuration with support for runtime changes.
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
 
-        // Initialize SignalR connection for real-time updates
-        await InitializeSignalRAsync();
-
-        // Set up automatic refresh timer with configured interval (fallback when SignalR disconnected)
+        // Set up automatic refresh timer with configured interval
         InitializeRefreshTimer();
 
         // Set up listener for configuration changes
         // This allows the refresh interval to be updated without restarting the application
         settingsChangeListener = DashboardSettingsMonitor.OnChange(settings =>
         {
-            Logger.LogInformation("Dashboard settings changed. New refresh interval: {RefreshIntervalMs}ms", settings.RefreshIntervalMs);
+            Console.WriteLine($"Dashboard settings changed. New refresh interval: {settings.RefreshIntervalMs}ms");
             InitializeRefreshTimer();
         });
     }
@@ -384,7 +358,6 @@
     /// <summary>
     /// Initializes or reinitializes the refresh timer with the current configuration settings.
     /// Disposes of the old timer if it exists before creating a new one.
-    /// Timer only runs when SignalR is disconnected (fallback mode).
     /// </summary>
     private void InitializeRefreshTimer()
     {
@@ -400,11 +373,11 @@
         if (refreshInterval > 0)
         {
             refreshTimer = new Timer(async _ => await RefreshDashboard(), null, refreshInterval, refreshInterval);
-            Logger.LogInformation("Dashboard auto-refresh enabled with interval: {RefreshIntervalMs}ms (fallback mode)", refreshInterval);
+            Console.WriteLine($"Dashboard auto-refresh enabled with interval: {refreshInterval}ms");
         }
         else
         {
-            Logger.LogInformation("Dashboard auto-refresh disabled (RefreshIntervalMs = 0)");
+            Console.WriteLine("Dashboard auto-refresh disabled (RefreshIntervalMs = 0)");
         }
     }
 
@@ -415,7 +388,7 @@
     /// <summary>
     /// Loads all dashboard data from API services.
     /// Calls AgentService, DeploymentService, and CommandService concurrently.
-    /// Handles exceptions gracefully by logging errors.
+    /// Handles exceptions gracefully by logging to console (future: proper error handling/display).
     /// </summary>
     /// <remarks>
     /// This method is called on initial load and can be called again to refresh data.
@@ -426,41 +399,30 @@
     {
         try
         {
-            Logger.LogDebug("Loading dashboard data from API");
             // Load data from all services concurrently for better performance
             agents = await AgentService.GetAllAgentsAsync();
-            _lastUpdateTime = DateTime.Now;
-            Logger.LogInformation("Successfully loaded {AgentCount} agents for dashboard", agents?.Count ?? 0);
-
+            
             // deployments = await DeploymentService.GetAllDeploymentsAsync();
             // commands = await CommandService.GetRecentCommandsAsync();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error loading dashboard data from API");
+            // Handle error - future enhancement: display error message in UI
+            Console.WriteLine($"Error loading data: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Refreshes all dashboard data automatically via timer (fallback mode).
-    /// Only runs when SignalR is disconnected.
+    /// Refreshes all dashboard data automatically via timer.
     /// Invokes StateHasChanged to update the UI on the correct thread.
     /// </summary>
     private async Task RefreshDashboard()
     {
-        // Only refresh if SignalR is not connected (fallback mode)
-        if (_isSignalRConnected)
-        {
-            return; // SignalR is handling updates
-        }
-
         try
         {
-            Logger.LogDebug("Refreshing dashboard via fallback timer (SignalR disconnected)");
             // Load data from all services
             agents = await AgentService.GetAllAgentsAsync();
             agents = agents.Where(a => a.IpAddress != "127.0.0.1").ToList();
-            _lastUpdateTime = DateTime.Now;
             // deployments = await DeploymentService.GetAllDeploymentsAsync();
             // commands = await CommandService.GetRecentCommandsAsync();
 
@@ -468,7 +430,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error refreshing dashboard via fallback timer");
+            Console.WriteLine($"Error refreshing dashboard: {ex.Message}");
         }
     }
 
@@ -632,147 +594,16 @@
     }
 
     // ============================================================================
-    // SignalR Methods
-    // ============================================================================
-
-    /// <summary>
-    /// Initializes SignalR connection to receive real-time agent updates.
-    /// Configures automatic reconnection and handles "AgentUpdated" messages.
-    /// Uses API base URL from configuration with /hubs/agents endpoint.
-    /// </summary>
-    private async Task InitializeSignalRAsync()
-    {
-        try
-        {
-            var apiBaseUrl = Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:5001";
-            var hubUrl = $"{apiBaseUrl}/hubs/agents";
-
-            Logger.LogInformation("Dashboard: Attempting to connect to SignalR hub at {HubUrl}", hubUrl);
-
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl(hubUrl, options =>
-                {
-                    // Configure for cross-origin requests
-                    options.AccessTokenProvider = () => Task.FromResult<string?>(null);
-                })
-                .WithAutomaticReconnect() // Automatic reconnection with exponential backoff
-                .ConfigureLogging(logging =>
-                {
-                    // Enable verbose logging for debugging
-                    logging.SetMinimumLevel(LogLevel.Debug);
-                })
-                .Build();
-
-            // Handle incoming agent updates
-            _hubConnection.On<AgentDto>("AgentUpdated", async (updatedAgent) =>
-            {
-                Logger.LogDebug("Dashboard: Received SignalR update for agent {MachineName} (ID: {AgentId})",
-                    updatedAgent.MachineName, updatedAgent.Id);
-                await HandleAgentUpdateAsync(updatedAgent);
-            });
-
-            // Track connection state
-            _hubConnection.Reconnecting += (error) =>
-            {
-                _isSignalRConnected = false;
-                Logger.LogWarning(error, "Dashboard: SignalR connection lost, attempting to reconnect. Fallback timer will take over.");
-                InvokeAsync(StateHasChanged);
-                return Task.CompletedTask;
-            };
-
-            _hubConnection.Reconnected += (connectionId) =>
-            {
-                _isSignalRConnected = true;
-                Logger.LogInformation("Dashboard: SignalR reconnected successfully with connection ID: {ConnectionId}", connectionId);
-                InvokeAsync(StateHasChanged);
-                return Task.CompletedTask;
-            };
-
-            _hubConnection.Closed += (error) =>
-            {
-                _isSignalRConnected = false;
-                if (error != null)
-                {
-                    Logger.LogWarning(error, "Dashboard: SignalR connection closed with error. Fallback timer active.");
-                }
-                else
-                {
-                    Logger.LogInformation("Dashboard: SignalR connection closed");
-                }
-                InvokeAsync(StateHasChanged);
-                return Task.CompletedTask;
-            };
-
-            await _hubConnection.StartAsync();
-            _isSignalRConnected = true;
-            Logger.LogInformation("Dashboard: SignalR connected successfully to {HubUrl}", hubUrl);
-        }
-        catch (Exception ex)
-        {
-            // Fallback timer will handle updates if SignalR fails
-            _isSignalRConnected = false;
-            Logger.LogError(ex, "Dashboard: Failed to establish SignalR connection. Using fallback timer.");
-        }
-    }
-
-    /// <summary>
-    /// Handles an agent update received from SignalR.
-    /// Updates the local agent list and triggers UI refresh.
-    /// More efficient than reloading all 5K agents.
-    /// </summary>
-    /// <param name="updatedAgent">The agent data received from the server</param>
-    private async Task HandleAgentUpdateAsync(AgentDto updatedAgent)
-    {
-        if (agents == null) return;
-
-        var existingAgent = agents.FirstOrDefault(a => a.Id == updatedAgent.Id);
-        if (existingAgent != null)
-        {
-            // Update existing agent
-            var index = agents.IndexOf(existingAgent);
-            agents[index] = updatedAgent;
-        }
-        else
-        {
-            // New agent registered
-            agents.Add(updatedAgent);
-        }
-
-        // Update last update time
-        _lastUpdateTime = DateTime.Now;
-
-        // Trigger UI refresh
-        await InvokeAsync(StateHasChanged);
-    }
-
-    // ============================================================================
     // Disposal
     // ============================================================================
 
     /// <summary>
     /// Disposes of resources when the component is destroyed.
-    /// Ensures the refresh timer, SignalR connection, and settings change listener are properly cleaned up.
+    /// Ensures the refresh timer and settings change listener are properly cleaned up to prevent memory leaks.
     /// </summary>
     public void Dispose()
     {
-        Logger.LogInformation("Disposing Dashboard page resources");
-
-        if (refreshTimer != null)
-        {
-            refreshTimer.Dispose();
-            Logger.LogDebug("Dashboard: Refresh timer disposed");
-        }
-
-        if (settingsChangeListener != null)
-        {
-            settingsChangeListener.Dispose();
-            Logger.LogDebug("Dashboard: Settings change listener disposed");
-        }
-
-        if (_hubConnection != null)
-        {
-            Logger.LogDebug("Dashboard: Disposing SignalR connection");
-            _ = _hubConnection.DisposeAsync();
-        }
+        refreshTimer?.Dispose();
+        settingsChangeListener?.Dispose();
     }
 }
