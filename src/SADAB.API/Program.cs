@@ -122,14 +122,20 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 
-// Configure CORS
+// Configure SignalR for real-time agent updates
+builder.Services.AddSignalR();
+
+// Configure CORS (updated to support SignalR with credentials)
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(
+                builder.Configuration["CorsSettings:AllowedOrigins"]?.Split(',')
+                ?? new[] { "https://localhost:5002", "http://localhost:5002" })
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials(); // Required for SignalR
     });
 });
 
@@ -184,10 +190,13 @@ if (!Directory.Exists(deploymentsPath))
     app.Logger.LogInformation("Created Deployments folder at {Path}", deploymentsPath);
 }
 
-// Use https redirection and CORS
+// Use https redirection
 app.UseHttpsRedirection();
 
-// CORS (Cross-Origin Resource Sharing) is a security mechanism that allows web servers to specify which origins (domains) are permitted to access their resources from a browser.
+// Enable routing BEFORE CORS and authentication (required for SignalR)
+app.UseRouting();
+
+// CORS (Cross-Origin Resource Sharing) - MUST come after UseRouting for SignalR
 app.UseCors();
 
 // Custom middleware to bypass authentication for local connections
@@ -200,7 +209,11 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
+// Map endpoints
 app.MapControllers();
+
+// Map SignalR hub for real-time agent updates (allow anonymous access for web dashboard)
+app.MapHub<SADAB.API.Hubs.AgentHub>("/hubs/agents").AllowAnonymous();
 
 var serviceName = builder.Configuration["ServiceSettings:ServiceName"] ?? "SADAB Server";
 app.Logger.LogInformation("{ServiceName} started on {Environment}", serviceName, app.Environment.EnvironmentName);

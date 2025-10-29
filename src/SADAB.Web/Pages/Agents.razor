@@ -11,8 +11,14 @@
 *@
 
 @page "/agents"
+@using Microsoft.AspNetCore.SignalR.Client
+@using SADAB.Shared.DTOs
+@using SADAB.Shared.Enums
 @inject IAgentService AgentService
 @inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
+@inject ILogger<Agents> Logger
+@implements IDisposable
 
 <PageTitle>Agents - SADAB</PageTitle>
 
@@ -21,6 +27,12 @@
     ==============
     Displays key metrics about registered agents
 *@
+
+@* SignalR Connection Status Indicator (Debug) *@
+<div style="background: @(_isSignalRConnected ? "#28a745" : "#dc3545"); color: white; padding: 5px 10px; text-align: center; font-size: 12px;">
+    SignalR: @(_isSignalRConnected ? "Connected ✓" : "Disconnected ✗") | Last Update: @_lastUpdateTime.ToString("HH:mm:ss")
+</div>
+
 <div class="stats-bar">
     <div class="stat-item">
         <div class="stat-icon total">🖥️</div>
@@ -157,6 +169,33 @@
     /// </summary>
     private List<AgentDto>? agents;
 
+    /// <summary>
+    /// SignalR hub connection for real-time agent updates.
+    /// Receives "AgentUpdated" messages from the server.
+    /// </summary>
+    private HubConnection? _hubConnection;
+
+    /// <summary>
+    /// Timer for fallback polling when SignalR is disconnected.
+    /// Configured via DashboardSettings:FallbackRefreshIntervalMs in appsettings.json
+    /// </summary>
+    private Timer? _fallbackTimer;
+
+    /// <summary>
+    /// Tracks whether SignalR is currently connected
+    /// </summary>
+    private bool _isSignalRConnected;
+
+    /// <summary>
+    /// Last time an update was received (for debugging)
+    /// </summary>
+    private DateTime _lastUpdateTime = DateTime.Now;
+
+    /// <summary>
+    /// SignalR connection error message (for debugging)
+    /// </summary>
+    private string? _signalRError;
+
     // ============================================================================
     // Computed Properties for Statistics
     // ============================================================================
@@ -173,6 +212,155 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadAgentsAsync();
+        await InitializeSignalRAsync();
+        StartFallbackTimer();
+    }
+
+    // ============================================================================
+    // SignalR Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Initializes SignalR connection to receive real-time agent updates.
+    /// Configures automatic reconnection and handles "AgentUpdated" messages.
+    /// Uses API base URL from configuration with /hubs/agents endpoint.
+    /// </summary>
+    private async Task InitializeSignalRAsync()
+    {
+        try
+        {
+            var apiBaseUrl = Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:5001";
+            var hubUrl = $"{apiBaseUrl}/hubs/agents";
+
+            Logger.LogInformation("Attempting to connect to SignalR hub at {HubUrl}", hubUrl);
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(hubUrl, options =>
+                {
+                    // Configure for cross-origin requests
+                    options.AccessTokenProvider = () => Task.FromResult<string?>(null);
+                })
+                .WithAutomaticReconnect() // Automatic reconnection with exponential backoff
+                .ConfigureLogging(logging =>
+                {
+                    // Enable verbose logging for debugging
+                    logging.SetMinimumLevel(LogLevel.Debug);
+                })
+                .Build();
+
+            // Handle incoming agent updates
+            _hubConnection.On<AgentDto>("AgentUpdated", async (updatedAgent) =>
+            {
+                Logger.LogDebug("Received SignalR update for agent {MachineName} (ID: {AgentId})",
+                    updatedAgent.MachineName, updatedAgent.Id);
+                await HandleAgentUpdateAsync(updatedAgent);
+            });
+
+            // Track connection state
+            _hubConnection.Reconnecting += (error) =>
+            {
+                _isSignalRConnected = false;
+                _signalRError = error?.Message;
+                Logger.LogWarning(error, "SignalR connection lost, attempting to reconnect");
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+
+            _hubConnection.Reconnected += (connectionId) =>
+            {
+                _isSignalRConnected = true;
+                _signalRError = null;
+                Logger.LogInformation("SignalR reconnected successfully with connection ID: {ConnectionId}", connectionId);
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+
+            _hubConnection.Closed += (error) =>
+            {
+                _isSignalRConnected = false;
+                _signalRError = error?.Message;
+                if (error != null)
+                {
+                    Logger.LogWarning(error, "SignalR connection closed with error");
+                }
+                else
+                {
+                    Logger.LogInformation("SignalR connection closed");
+                }
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+
+            await _hubConnection.StartAsync();
+            _isSignalRConnected = true;
+            _signalRError = null;
+            Logger.LogInformation("SignalR connected successfully to {HubUrl}", hubUrl);
+        }
+        catch (Exception ex)
+        {
+            // Fallback timer will handle updates if SignalR fails
+            _isSignalRConnected = false;
+            _signalRError = ex.Message;
+            Logger.LogError(ex, "Failed to establish SignalR connection to hub");
+        }
+    }
+
+    /// <summary>
+    /// Handles an agent update received from SignalR.
+    /// Updates the local agent list and triggers UI refresh.
+    /// More efficient than reloading all 5K agents.
+    /// </summary>
+    /// <param name="updatedAgent">The agent data received from the server</param>
+    private async Task HandleAgentUpdateAsync(AgentDto updatedAgent)
+    {
+        if (agents == null) return;
+
+        var existingAgent = agents.FirstOrDefault(a => a.Id == updatedAgent.Id);
+        if (existingAgent != null)
+        {
+            // Update existing agent
+            var index = agents.IndexOf(existingAgent);
+            agents[index] = updatedAgent;
+        }
+        else
+        {
+            // New agent registered
+            agents.Add(updatedAgent);
+        }
+
+        // Update last update time
+        _lastUpdateTime = DateTime.Now;
+
+        // Trigger UI refresh
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // ============================================================================
+    // Fallback Timer Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Starts a fallback timer that polls for agent updates when SignalR is disconnected.
+    /// Interval configured via DashboardSettings:FallbackRefreshIntervalMs (default 60 seconds).
+    /// This ensures updates continue even if SignalR connection fails.
+    /// </summary>
+    private void StartFallbackTimer()
+    {
+        var fallbackIntervalMs = Configuration.GetValue<int>("DashboardSettings:FallbackRefreshIntervalMs", 60000);
+
+        Logger.LogInformation("Starting fallback timer with interval of {IntervalMs}ms ({IntervalSeconds}s)",
+            fallbackIntervalMs, fallbackIntervalMs / 1000);
+
+        _fallbackTimer = new Timer(async _ =>
+        {
+            // Only poll if SignalR is not connected
+            if (!_isSignalRConnected)
+            {
+                Logger.LogDebug("SignalR disconnected, using fallback polling to refresh agent list");
+                await LoadAgentsAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }, null, TimeSpan.FromMilliseconds(fallbackIntervalMs), TimeSpan.FromMilliseconds(fallbackIntervalMs));
     }
 
     // ============================================================================
@@ -180,11 +368,22 @@
     // ============================================================================
 
     /// <summary>
-    /// Loads all agents from the API
+    /// Loads all agents from the API.
+    /// Called on initialization and by fallback timer when SignalR is disconnected.
     /// </summary>
     private async Task LoadAgentsAsync()
     {
-        agents = await AgentService.GetAllAgentsAsync();
+        try
+        {
+            Logger.LogDebug("Loading agents from API");
+            agents = await AgentService.GetAllAgentsAsync();
+            _lastUpdateTime = DateTime.Now;
+            Logger.LogInformation("Successfully loaded {AgentCount} agents from API", agents?.Count ?? 0);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load agents from API");
+        }
     }
 
     // ============================================================================
@@ -341,5 +540,30 @@
     private void ViewAgentDetails(Guid agentId)
     {
         NavigationManager.NavigateTo($"/agents/{agentId}");
+    }
+
+    // ============================================================================
+    // Cleanup Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Disposes resources when the component is destroyed.
+    /// Closes SignalR connection and stops the fallback timer.
+    /// </summary>
+    public void Dispose()
+    {
+        Logger.LogInformation("Disposing Agents page resources");
+
+        if (_fallbackTimer != null)
+        {
+            _fallbackTimer.Dispose();
+            Logger.LogDebug("Fallback timer disposed");
+        }
+
+        if (_hubConnection != null)
+        {
+            Logger.LogDebug("Disposing SignalR connection");
+            _ = _hubConnection.DisposeAsync();
+        }
     }
 }
