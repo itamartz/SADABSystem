@@ -280,9 +280,29 @@ When creating a new DTO:
 ## Development Workflow
 
 ### Branching Strategy
-- Feature branches: `claude/<descriptive-name>-<dateTime>`
+**IMPORTANT**: Always create a git branch BEFORE starting any code changes in SADAB.
+
+- **Create branch first**: Before making any code modifications, create a new feature branch
+- Feature branch naming: `claude/<descriptive-name>-<dateTime>`
+- Make all changes in the feature branch
 - Never push directly to main
 - Create PR after feature completion
+
+**Example workflow**:
+```bash
+# 1. Create new branch before starting work
+git checkout -b claude/feature-name-20251030
+
+# 2. Make your changes in the branch
+# ... edit files ...
+
+# 3. Commit changes to the branch
+git add .
+git commit -m "Your commit message"
+
+# 4. Push branch and create PR
+git push -u origin claude/feature-name-20251030
+```
 
 ### Commit Pattern
 - Frequent commits with descriptive messages
