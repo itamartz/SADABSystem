@@ -1,4 +1,4 @@
-namespace SADAB.Server.Models;
+namespace SADAB.API.Models;
 
 public class AgentCertificate
 {

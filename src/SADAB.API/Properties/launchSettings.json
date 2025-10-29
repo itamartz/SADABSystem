@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "SADAB.Server": {
+    "SADAB.API": {
       "commandName": "Project",
       "launchBrowser": false,
       "launchUrl": "swagger",

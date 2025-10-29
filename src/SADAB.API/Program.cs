@@ -5,9 +5,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
-using SADAB.Server.Data;
-using SADAB.Server.Middleware;
-using SADAB.Server.Services;
+using SADAB.API.Data;
+using SADAB.API.Middleware;
+using SADAB.API.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);

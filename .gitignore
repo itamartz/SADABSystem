@@ -37,7 +37,7 @@ override.tf.json
 terraform.rc
 
 ## Ignore Visual Studio temporary files, build results, and cache
-src/SADAB.Server/obj/
+src/SADAB.API/obj/
 src/SADAB.Shared/bin/
 
 

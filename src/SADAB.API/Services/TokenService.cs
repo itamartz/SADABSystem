@@ -2,9 +2,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
-using SADAB.Server.Data;
+using SADAB.API.Data;
 
-namespace SADAB.Server.Services;
+namespace SADAB.API.Services;
 
 public interface ITokenService
 {
@@ -24,7 +24,7 @@ public class TokenService : ITokenService
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
         var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
-        var issuer = jwtSettings["Issuer"] ?? "SADAB.Server";
+        var issuer = jwtSettings["Issuer"] ?? "SADAB.API";
         var audience = jwtSettings["Audience"] ?? "SADAB.Client";
         var expirationHours = int.Parse(jwtSettings["ExpirationHours"] ?? "24");
 

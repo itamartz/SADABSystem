@@ -105,7 +105,7 @@ A comprehensive client-server application for software deployment and inventory 
 ```
 SADABSystem/
 ├── src/
-│   ├── SADAB.Server/          # ASP.NET Core Web API
+│   ├── SADAB.API/          # ASP.NET Core Web API
 │   │   ├── Controllers/       # API Controllers
 │   │   ├── Data/             # EF Core DbContext & Models
 │   │   ├── Models/           # Database Entities
@@ -139,7 +139,7 @@ SADABSystem/
 
 1. **Navigate to the Server project:**
    ```bash
-   cd src/SADAB.Server
+   cd src/SADAB.API
    ```
 
 2. **Configure settings** in `appsettings.json`:
@@ -150,7 +150,7 @@ SADABSystem/
      },
      "JwtSettings": {
        "SecretKey": "YourSecretKeyHere-MustBeAtLeast32Characters",
-       "Issuer": "SADAB.Server",
+       "Issuer": "SADAB.API",
        "Audience": "SADAB.Client",
        "ExpirationHours": "24"
      },
@@ -409,7 +409,7 @@ The system uses SQLite with the following main tables:
   },
   "JwtSettings": {
     "SecretKey": "YourSecretKey",
-    "Issuer": "SADAB.Server",
+    "Issuer": "SADAB.API",
     "Audience": "SADAB.Client",
     "ExpirationHours": "24"
   },
@@ -468,7 +468,7 @@ The agent stores its configuration in:
 dotnet build
 
 # Build specific project
-dotnet build src/SADAB.Server/SADAB.Server.csproj
+dotnet build src/SADAB.API/SADAB.API.csproj
 ```
 
 ### Running Tests
@@ -482,7 +482,7 @@ dotnet test
 The database is automatically created on first run using `EnsureCreated()`. For production, consider using migrations:
 
 ```bash
-cd src/SADAB.Server
+cd src/SADAB.API
 dotnet ef migrations add InitialCreate
 dotnet ef database update
 ```

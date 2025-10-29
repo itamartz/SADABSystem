@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
-namespace SADAB.Server.Data;
+namespace SADAB.API.Data;
 
 public class ApplicationUser : IdentityUser
 {

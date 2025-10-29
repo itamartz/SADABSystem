@@ -1,7 +1,7 @@
 using SADAB.Shared.Enums;
 using System.Text.Json;
 
-namespace SADAB.Server.Models;
+namespace SADAB.API.Models;
 
 public class Deployment
 {

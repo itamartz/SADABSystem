@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using SADAB.Server.Models;
+using SADAB.API.Models;
 
-namespace SADAB.Server.Data;
+namespace SADAB.API.Data;
 
 public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {

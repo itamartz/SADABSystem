@@ -1,5 +1,5 @@
-# SADAB.Server/Controllers/
-* All the SADAB.Server.Controllers should be under folder v1
+# SADAB.API/Controllers/
+* All the SADAB.API.Controllers should be under folder v1
 * All the Controller should have [Route("api/v1[controller]")]
 * Add supported to opentelemetry and send the data to local splunk core - HEC and Token will be in appsetting.json
 * Add supported to Scalar

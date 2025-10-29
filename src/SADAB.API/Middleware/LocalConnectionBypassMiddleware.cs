@@ -3,7 +3,7 @@ using System.Net;
 using System.Security.Claims;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
-namespace SADAB.Server.Middleware;
+namespace SADAB.API.Middleware;
 
 /// <summary>
 /// Middleware that automatically authenticates requests from localhost,

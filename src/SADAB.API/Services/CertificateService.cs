@@ -1,11 +1,11 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using SADAB.Server.Data;
-using SADAB.Server.Models;
+using SADAB.API.Data;
+using SADAB.API.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace SADAB.Server.Services;
+namespace SADAB.API.Services;
 
 public interface ICertificateService
 {

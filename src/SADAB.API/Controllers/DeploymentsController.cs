@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SADAB.Server.Data;
-using SADAB.Server.Models;
+using SADAB.API.Data;
+using SADAB.API.Models;
 using SADAB.Shared.DTOs;
 using SADAB.Shared.Enums;
 using System.Security.Claims;
 
-namespace SADAB.Server.Controllers;
+namespace SADAB.API.Controllers;
 
 /// <summary>
 /// Manages deployment operations including creation, retrieval, and execution tracking

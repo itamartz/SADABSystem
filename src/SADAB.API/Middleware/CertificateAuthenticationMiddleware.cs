@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Configuration;
-using SADAB.Server.Services;
+using SADAB.API.Services;
 
-namespace SADAB.Server.Middleware;
+namespace SADAB.API.Middleware;
 
 public class CertificateAuthenticationMiddleware
 {

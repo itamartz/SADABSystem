@@ -1,6 +1,6 @@
 using SADAB.Shared.Enums;
 
-namespace SADAB.Server.Models;
+namespace SADAB.API.Models;
 
 public class DeploymentResult
 {

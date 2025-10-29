@@ -1,14 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SADAB.Server.Data;
-using SADAB.Server.Models;
-using SADAB.Server.Services;
+using SADAB.API.Data;
+using SADAB.API.Models;
+using SADAB.API.Services;
 using SADAB.Shared.DTOs;
 using SADAB.Shared.Enums;
 using System.Text.Json;
 
-namespace SADAB.Server.Controllers;
+namespace SADAB.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
