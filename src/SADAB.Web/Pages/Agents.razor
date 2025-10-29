@@ -1,0 +1,334 @@
+@*
+    Agents Management Page
+    ======================
+    Comprehensive agents management interface showing all registered agents.
+    Features include:
+    - Statistics dashboard with agent counts by status
+    - Grid view of agent cards with system information
+    - Certificate expiration warnings
+    - Real-time status indicators
+    - Quick actions for each agent
+*@
+
+@page "/agents"
+@inject IAgentService AgentService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Agents - SADAB</PageTitle>
+
+@*
+    Statistics Bar
+    ==============
+    Displays key metrics about registered agents
+*@
+<div class="stats-bar">
+    <div class="stat-item">
+        <div class="stat-icon total">🖥️</div>
+        <div class="stat-content">
+            <div class="stat-label">Total Agents</div>
+            <div class="stat-value">@TotalAgents</div>
+        </div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-icon online">✓</div>
+        <div class="stat-content">
+            <div class="stat-label">Online</div>
+            <div class="stat-value">@OnlineAgents</div>
+        </div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-icon offline">✕</div>
+        <div class="stat-content">
+            <div class="stat-label">Offline</div>
+            <div class="stat-value">@OfflineAgents</div>
+        </div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-icon warning">⚠</div>
+        <div class="stat-content">
+            <div class="stat-label">Warnings</div>
+            <div class="stat-value">@WarningAgents</div>
+        </div>
+    </div>
+</div>
+
+@*
+    Agents Grid Container
+    =====================
+    Main container for displaying agent cards
+*@
+<div class="agents-container">
+    <div class="agents-header">
+        <div class="agents-title">Registered Agents (@TotalAgents)</div>
+    </div>
+
+    @if (agents == null)
+    {
+        @* Loading State *@
+        <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Loading agents...</p>
+        </div>
+    }
+    else if (!agents.Any())
+    {
+        @* Empty State *@
+        <div class="empty-state">
+            <div class="empty-icon">🖥️</div>
+            <h3>No Agents Registered</h3>
+            <p>No agents have been registered yet. Install and configure the SADAB agent on your machines to get started.</p>
+        </div>
+    }
+    else
+    {
+        @* Agents Grid *@
+        <div class="agents-grid">
+            @foreach (var agent in agents)
+            {
+                <div class="agent-card @GetAgentCardClass(agent)">
+                    @* Agent Header *@
+                    <div class="agent-header">
+                        <div>
+                            <div class="agent-name">@agent.MachineName</div>
+                            <div class="agent-id @GetCertificateClass(agent)">
+                                @GetCertificateStatus(agent)
+                            </div>
+                        </div>
+                        <span class="status @GetStatusClass(agent.Status)">@agent.Status</span>
+                    </div>
+
+                    @* Agent Info Grid *@
+                    <div class="agent-info">
+                        <div class="info-item">
+                            <span class="info-label">IP Address</span>
+                            <span class="info-value">@(agent.IpAddress.Split(',')[0] ?? "N/A")</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">OS Version</span>
+                            <span class="info-value">@agent.OperatingSystem</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Registered</span>
+                            <span class="info-value">@GetTimeAgo(agent.RegisteredAt)</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Last Seen</span>
+                            <span class="info-value">@GetTimeAgo(agent.LastHeartbeat)</span>
+                        </div>
+                    </div>
+
+                    @* Placeholder Metrics (will be populated from SystemInfo in future) *@
+                    <div class="agent-metrics">
+                        <div class="metric">
+                            <div class="metric-value">--</div>
+                            <div class="metric-label">CPU</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">--</div>
+                            <div class="metric-label">MEMORY</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">--</div>
+                            <div class="metric-label">DISK</div>
+                        </div>
+                    </div>
+
+                    @* Agent Actions *@
+                    <div class="agent-actions">
+                        <button class="action-btn" @onclick="() => ViewAgentDetails(agent.Id)">📊 Details</button>
+                        <button class="action-btn">⚙️ Execute</button>
+                        <button class="action-btn">🔧 Configure</button>
+                    </div>
+
+                    @* Heartbeat Status *@
+                    <div class="heartbeat">
+                        <div class="heartbeat-dot @(IsAgentOnline(agent) ? "" : "offline")"></div>
+                        <span>@GetHeartbeatText(agent)</span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Collection of all registered agents retrieved from the API
+    /// </summary>
+    private List<AgentDto>? agents;
+
+    // ============================================================================
+    // Computed Properties for Statistics
+    // ============================================================================
+
+    private int TotalAgents => agents?.Count ?? 0;
+    private int OnlineAgents => agents?.Count(a => a.Status == AgentStatus.Online) ?? 0;
+    private int OfflineAgents => agents?.Count(a => a.Status == AgentStatus.Offline || a.Status == AgentStatus.Disconnected) ?? 0;
+    private int WarningAgents => agents?.Count(a => IsCertificateExpiringSoon(a) || a.Status == AgentStatus.Error) ?? 0;
+
+    // ============================================================================
+    // Lifecycle Methods
+    // ============================================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAgentsAsync();
+    }
+
+    // ============================================================================
+    // Data Loading Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Loads all agents from the API
+    /// </summary>
+    private async Task LoadAgentsAsync()
+    {
+        agents = await AgentService.GetAllAgentsAsync();
+    }
+
+    // ============================================================================
+    // Helper Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Determines if an agent is currently online based on last heartbeat
+    /// </summary>
+    private bool IsAgentOnline(AgentDto agent)
+    {
+        return agent.Status == AgentStatus.Online &&
+               (DateTime.UtcNow - agent.LastHeartbeat).TotalMinutes < 5;
+    }
+
+    /// <summary>
+    /// Gets the CSS class for agent status badge
+    /// </summary>
+    private string GetStatusClass(AgentStatus status)
+    {
+        return status switch
+        {
+            AgentStatus.Online => "online",
+            AgentStatus.Offline => "offline",
+            AgentStatus.Disconnected => "offline",
+            AgentStatus.Error => "failed",
+            _ => "offline"
+        };
+    }
+
+    /// <summary>
+    /// Gets the CSS class for the agent card based on its state
+    /// </summary>
+    private string GetAgentCardClass(AgentDto agent)
+    {
+        if (agent.Status == AgentStatus.Offline || agent.Status == AgentStatus.Disconnected)
+            return "offline";
+        if (IsCertificateExpiringSoon(agent) || agent.Status == AgentStatus.Error)
+            return "warning";
+        return "";
+    }
+
+    /// <summary>
+    /// Determines if certificate is expiring soon (within 30 days)
+    /// </summary>
+    private bool IsCertificateExpiringSoon(AgentDto agent)
+    {
+        if (agent.CertificateExpiresAt == null)
+            return false;
+
+        var daysUntilExpiry = (agent.CertificateExpiresAt.Value - DateTime.UtcNow).TotalDays;
+        return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
+    }
+
+    /// <summary>
+    /// Determines if certificate has expired
+    /// </summary>
+    private bool IsCertificateExpired(AgentDto agent)
+    {
+        if (agent.CertificateExpiresAt == null)
+            return false;
+
+        return agent.CertificateExpiresAt.Value < DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Gets the CSS class for certificate status display
+    /// </summary>
+    private string GetCertificateClass(AgentDto agent)
+    {
+        if (IsCertificateExpired(agent))
+            return "expired";
+        if (IsCertificateExpiringSoon(agent))
+            return "expiring-soon";
+        return "";
+    }
+
+    /// <summary>
+    /// Gets the certificate status text to display
+    /// </summary>
+    private string GetCertificateStatus(AgentDto agent)
+    {
+        if (agent.CertificateExpiresAt == null)
+            return "📜 No certificate information";
+
+        var daysUntilExpiry = (int)(agent.CertificateExpiresAt.Value - DateTime.UtcNow).TotalDays;
+
+        if (daysUntilExpiry < 0)
+            return $"📜 Certificate EXPIRED {Math.Abs(daysUntilExpiry)} days ago";
+        if (daysUntilExpiry == 0)
+            return "📜 Certificate expires TODAY";
+        if (daysUntilExpiry <= 7)
+            return $"📜 Certificate expires in {daysUntilExpiry} days";
+        if (daysUntilExpiry <= 30)
+            return $"📜 Certificate expires in {daysUntilExpiry} days";
+
+        return $"📜 Certificate expires in {daysUntilExpiry} days";
+    }
+
+    /// <summary>
+    /// Gets heartbeat status text
+    /// </summary>
+    private string GetHeartbeatText(AgentDto agent)
+    {
+        if (!IsAgentOnline(agent))
+        {
+            var timeSinceLastSeen = DateTime.UtcNow - agent.LastHeartbeat;
+            return $"Last seen: {GetTimeAgo(agent.LastHeartbeat)}";
+        }
+
+        var secondsAgo = (int)(DateTime.UtcNow - agent.LastHeartbeat).TotalSeconds;
+        return $"Last heartbeat: {secondsAgo} seconds ago";
+    }
+
+    /// <summary>
+    /// Converts a DateTime to a human-readable "time ago" string
+    /// </summary>
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+
+        if (timeSpan.TotalDays >= 365)
+            return $"{(int)(timeSpan.TotalDays / 365)} year{((int)(timeSpan.TotalDays / 365) == 1 ? "" : "s")} ago";
+        if (timeSpan.TotalDays >= 30)
+            return $"{(int)(timeSpan.TotalDays / 30)} month{((int)(timeSpan.TotalDays / 30) == 1 ? "" : "s")} ago";
+        if (timeSpan.TotalDays >= 1)
+            return $"{(int)timeSpan.TotalDays} day{((int)timeSpan.TotalDays == 1 ? "" : "s")} ago";
+        if (timeSpan.TotalHours >= 1)
+            return $"{(int)timeSpan.TotalHours} hour{((int)timeSpan.TotalHours == 1 ? "" : "s")} ago";
+        if (timeSpan.TotalMinutes >= 1)
+            return $"{(int)timeSpan.TotalMinutes} minute{((int)timeSpan.TotalMinutes == 1 ? "" : "s")} ago";
+
+        return $"{(int)timeSpan.TotalSeconds} second{((int)timeSpan.TotalSeconds == 1 ? "" : "s")} ago";
+    }
+
+    // ============================================================================
+    // Navigation Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Navigates to agent details page
+    /// </summary>
+    private void ViewAgentDetails(Guid agentId)
+    {
+        NavigationManager.NavigateTo($"/agents/{agentId}");
+    }
+}

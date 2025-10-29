@@ -191,7 +191,7 @@ app.UseHttpsRedirection();
 app.UseCors();
 
 // Custom middleware to bypass authentication for local connections
-app.UseLocalConnectionBypass();
+//app.UseLocalConnectionBypass();
 
 // Custom certificate authentication middleware (must run BEFORE UseAuthentication)
 app.UseCertificateAuthentication();
