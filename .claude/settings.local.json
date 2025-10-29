@@ -10,7 +10,8 @@
       "Bash(find:*)",
       "Bash(dotnet build:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nRename project from SADAB.Server to SADAB.API\n\n- Renamed SADAB.Server project directory and all files to SADAB.API\n- Updated all namespace references from SADAB.Server to SADAB.API throughout codebase\n- Updated solution file project references\n- Updated documentation (README.md) with new project paths and references\n- Updated TODO.md and .gitignore to reflect new structure\n- Verified build succeeds with all changes\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nRename project from SADAB.Server to SADAB.API\n\n- Renamed SADAB.Server project directory and all files to SADAB.API\n- Updated all namespace references from SADAB.Server to SADAB.API throughout codebase\n- Updated solution file project references\n- Updated documentation (README.md) with new project paths and references\n- Updated TODO.md and .gitignore to reflect new structure\n- Verified build succeeds with all changes\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push)"
     ],
     "deny": [],
     "ask": []
