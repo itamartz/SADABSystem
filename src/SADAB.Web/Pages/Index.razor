@@ -401,7 +401,6 @@
         {
             // Load data from all services concurrently for better performance
             agents = await AgentService.GetAllAgentsAsync();
-            agents = agents.Where(a => a.IpAddress != "127.0.0.1").ToList();
             // deployments = await DeploymentService.GetAllDeploymentsAsync();
             // commands = await CommandService.GetRecentCommandsAsync();
         }
@@ -422,7 +421,6 @@
         {
             // Load data from all services
             agents = await AgentService.GetAllAgentsAsync();
-            agents = agents.Where(a => a.IpAddress != "127.0.0.1").ToList();
             // deployments = await DeploymentService.GetAllDeploymentsAsync();
             // commands = await CommandService.GetRecentCommandsAsync();
 
