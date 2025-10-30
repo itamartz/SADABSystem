@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SADAB.API.Data;
+using SADAB.API.Hubs;
 using SADAB.API.Models;
 using SADAB.API.Services;
 using SADAB.Shared.DTOs;
@@ -18,17 +20,20 @@ public class AgentsController : ControllerBase
     private readonly ICertificateService _certificateService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AgentsController> _logger;
+    private readonly IHubContext<AgentHub> _hubContext;
 
     public AgentsController(
         ApplicationDbContext context,
         ICertificateService certificateService,
         IConfiguration configuration,
-        ILogger<AgentsController> logger)
+        ILogger<AgentsController> logger,
+        IHubContext<AgentHub> hubContext)
     {
         _context = context;
         _certificateService = certificateService;
         _configuration = configuration;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     [HttpPost("register")]
@@ -51,7 +56,7 @@ public class AgentsController : ControllerBase
                 agent.OperatingSystem = request.OperatingSystem;
                 agent.IpAddress = request.IpAddress;
                 agent.Status = AgentStatus.Online;
-                agent.LastHeartbeat = DateTime.UtcNow;
+                agent.LastHeartbeat = DateTime.Now;
 
                 if (request.Metadata != null)
                 {
@@ -71,8 +76,8 @@ public class AgentsController : ControllerBase
                     OperatingSystem = request.OperatingSystem,
                     IpAddress = request.IpAddress,
                     Status = AgentStatus.Online,
-                    LastHeartbeat = DateTime.UtcNow,
-                    RegisteredAt = DateTime.UtcNow,
+                    LastHeartbeat = DateTime.Now,
+                    RegisteredAt = DateTime.Now,
                     Metadata = request.Metadata != null ? JsonSerializer.Serialize(request.Metadata) : null
                 };
 
@@ -143,15 +148,113 @@ public class AgentsController : ControllerBase
                 agent.IpAddress = request.IpAddress;
             }
 
+            // Update OperatingSystem and SystemInfo from request
+            if (request.SystemInfo != null)
+            {
+                // Update OS Version
+                if (request.SystemInfo.ContainsKey("OSVersion"))
+                {
+                    var osVersion = request.SystemInfo["OSVersion"]?.ToString();
+                    if (!string.IsNullOrEmpty(osVersion))
+                    {
+                        agent.OperatingSystem = osVersion;
+                        _logger.LogDebug("Updated agent {AgentId} OS version to {OSVersion}", agentId, osVersion);
+                    }
+                }
+
+                // Store entire SystemInfo in Metadata JSON field
+                agent.Metadata = JsonSerializer.Serialize(request.SystemInfo);
+                _logger.LogDebug("Updated agent {AgentId} metadata with SystemInfo", agentId);
+            }
+
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Agent {agent} heartbeat processed successfully", agent);
+
+            // Broadcast agent update via SignalR to all connected web clients
+            // This pushes only the updated agent data instead of requiring clients to poll for all 5K agents
+            await BroadcastAgentUpdateAsync(agent);
+
             return Ok(new { message = _configuration["Messages:HeartbeatReceived"] ?? "Heartbeat received" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing heartbeat");
             return StatusCode(500, new { message = _configuration["Messages:ErrorOccurred"] ?? "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Broadcasts an agent update to all connected SignalR clients.
+    /// Extracts CPU and memory usage from metadata and sends only the updated agent data.
+    /// This is efficient for 5K+ agent deployments as it pushes only changed data.
+    /// </summary>
+    /// <param name="agent">The agent that was updated</param>
+    private async Task BroadcastAgentUpdateAsync(Agent agent)
+    {
+        try
+        {
+            double? cpuUsage = null;
+            double? memoryUsage = null;
+
+            // Extract CPU and Memory from Metadata JSON
+            if (!string.IsNullOrEmpty(agent.Metadata))
+            {
+                try
+                {
+                    var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(agent.Metadata);
+                    if (metadata != null)
+                    {
+                        if (metadata.ContainsKey("CpuUsagePercent"))
+                        {
+                            var cpuValue = metadata["CpuUsagePercent"];
+                            if (cpuValue != null && double.TryParse(cpuValue.ToString(), out var cpu) && cpu >= 0)
+                            {
+                                cpuUsage = cpu;
+                            }
+                        }
+
+                        if (metadata.ContainsKey("MemoryUsagePercent"))
+                        {
+                            var memValue = metadata["MemoryUsagePercent"];
+                            if (memValue != null && double.TryParse(memValue.ToString(), out var mem) && mem >= 0)
+                            {
+                                memoryUsage = mem;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing metadata for agent {AgentId} during broadcast", agent.Id);
+                }
+            }
+
+            var agentDto = new AgentDto
+            {
+                Id = agent.Id,
+                MachineName = agent.MachineName,
+                MachineId = agent.MachineId,
+                OperatingSystem = agent.OperatingSystem,
+                IpAddress = agent.IpAddress,
+                Status = agent.Status,
+                LastHeartbeat = agent.LastHeartbeat,
+                RegisteredAt = agent.RegisteredAt,
+                CertificateExpiresAt = agent.CertificateExpiresAt,
+                CpuUsagePercent = cpuUsage,
+                MemoryUsagePercent = memoryUsage
+            };
+
+            // Broadcast to all connected clients
+            // Method name "AgentUpdated" will be received by SignalR clients
+            await _hubContext.Clients.All.SendAsync("AgentUpdated", agentDto);
+
+            _logger.LogDebug("Broadcasted agent update for {AgentId} via SignalR", agent.Id);
+        }
+        catch (Exception ex)
+        {
+            // Don't fail the heartbeat if SignalR broadcast fails
+            _logger.LogWarning(ex, "Failed to broadcast agent update via SignalR for agent {AgentId}", agent.Id);
         }
     }
 
@@ -232,7 +335,47 @@ public class AgentsController : ControllerBase
         {
             var agents = await _context.Agents
                 .OrderByDescending(a => a.LastHeartbeat)
-                .Select(a => new AgentDto
+                .ToListAsync();
+
+            var agentDtos = agents.Select(a =>
+            {
+                double? cpuUsage = null;
+                double? memoryUsage = null;
+
+                // Extract CPU and Memory from Metadata JSON
+                if (!string.IsNullOrEmpty(a.Metadata))
+                {
+                    try
+                    {
+                        var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(a.Metadata);
+                        if (metadata != null)
+                        {
+                            if (metadata.ContainsKey("CpuUsagePercent"))
+                            {
+                                var cpuValue = metadata["CpuUsagePercent"];
+                                if (cpuValue != null && double.TryParse(cpuValue.ToString(), out var cpu) && cpu >= 0)
+                                {
+                                    cpuUsage = cpu;
+                                }
+                            }
+
+                            if (metadata.ContainsKey("MemoryUsagePercent"))
+                            {
+                                var memValue = metadata["MemoryUsagePercent"];
+                                if (memValue != null && double.TryParse(memValue.ToString(), out var mem) && mem >= 0)
+                                {
+                                    memoryUsage = mem;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error parsing metadata for agent {AgentId}", a.Id);
+                    }
+                }
+
+                return new AgentDto
                 {
                     Id = a.Id,
                     MachineName = a.MachineName,
@@ -242,11 +385,13 @@ public class AgentsController : ControllerBase
                     Status = a.Status,
                     LastHeartbeat = a.LastHeartbeat,
                     RegisteredAt = a.RegisteredAt,
-                    CertificateExpiresAt = a.CertificateExpiresAt
-                })
-                .ToListAsync();
+                    CertificateExpiresAt = a.CertificateExpiresAt,
+                    CpuUsagePercent = cpuUsage,
+                    MemoryUsagePercent = memoryUsage
+                };
+            }).ToList();
 
-            return Ok(agents);
+            return Ok(agentDtos);
         }
         catch (Exception ex)
         {
@@ -267,6 +412,42 @@ public class AgentsController : ControllerBase
                 return NotFound();
             }
 
+            double? cpuUsage = null;
+            double? memoryUsage = null;
+
+            // Extract CPU and Memory from Metadata JSON
+            if (!string.IsNullOrEmpty(agent.Metadata))
+            {
+                try
+                {
+                    var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(agent.Metadata);
+                    if (metadata != null)
+                    {
+                        if (metadata.ContainsKey("CpuUsagePercent"))
+                        {
+                            var cpuValue = metadata["CpuUsagePercent"];
+                            if (cpuValue != null && double.TryParse(cpuValue.ToString(), out var cpu) && cpu >= 0)
+                            {
+                                cpuUsage = cpu;
+                            }
+                        }
+
+                        if (metadata.ContainsKey("MemoryUsagePercent"))
+                        {
+                            var memValue = metadata["MemoryUsagePercent"];
+                            if (memValue != null && double.TryParse(memValue.ToString(), out var mem) && mem >= 0)
+                            {
+                                memoryUsage = mem;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing metadata for agent {AgentId}", id);
+                }
+            }
+
             return Ok(new AgentDto
             {
                 Id = agent.Id,
@@ -277,7 +458,9 @@ public class AgentsController : ControllerBase
                 Status = agent.Status,
                 LastHeartbeat = agent.LastHeartbeat,
                 RegisteredAt = agent.RegisteredAt,
-                CertificateExpiresAt = agent.CertificateExpiresAt
+                CertificateExpiresAt = agent.CertificateExpiresAt,
+                CpuUsagePercent = cpuUsage,
+                MemoryUsagePercent = memoryUsage
             });
         }
         catch (Exception ex)

@@ -49,7 +49,7 @@ public class WindowsInventoryCollectorService : IInventoryCollectorService
         var inventory = new InventoryDataDto
         {
             AgentId = _configuration.AgentId!.Value,
-            CollectedAt = DateTime.UtcNow
+            CollectedAt = DateTime.Now
         };
 
         await Task.Run(() =>
@@ -302,7 +302,7 @@ public class GenericInventoryCollectorService : IInventoryCollectorService
         return Task.FromResult(new InventoryDataDto
         {
             AgentId = _configuration.AgentId!.Value,
-            CollectedAt = DateTime.UtcNow
+            CollectedAt = DateTime.Now
         });
     }
 }

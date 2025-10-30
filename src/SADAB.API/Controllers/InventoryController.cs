@@ -55,7 +55,7 @@ public class InventoryController : ControllerBase
                 inventory.InstalledSoftware = JsonSerializer.Serialize(inventoryDto.InstalledSoftware);
                 inventory.EnvironmentVariables = JsonSerializer.Serialize(inventoryDto.EnvironmentVariables);
                 inventory.RunningServices = JsonSerializer.Serialize(inventoryDto.RunningServices);
-                inventory.CollectedAt = DateTime.UtcNow;
+                inventory.CollectedAt = DateTime.Now;
 
                 _logger.LogInformation("Updating existing inventory record for AgentId {AgentId}", inventoryDto.AgentId);
                 _context.InventoryData.Update(inventory);
@@ -74,7 +74,7 @@ public class InventoryController : ControllerBase
                     InstalledSoftware = JsonSerializer.Serialize(inventoryDto.InstalledSoftware),
                     EnvironmentVariables = JsonSerializer.Serialize(inventoryDto.EnvironmentVariables),
                     RunningServices = JsonSerializer.Serialize(inventoryDto.RunningServices),
-                    CollectedAt = DateTime.UtcNow
+                    CollectedAt = DateTime.Now
                 };
 
                 _context.InventoryData.Add(inventory);

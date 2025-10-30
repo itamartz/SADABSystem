@@ -1,0 +1,37 @@
+Phase Breakdown
+
+  Phase 1: Basic Agents List Page (~15k tokens) - Initial Setup we need to fix the CSS and layout
+  - Create Agents.razor page
+  - Stats dashboard (Total, Online, Offline, Warnings)
+  - Agent cards in grid view with basic info
+  - Status indicators, basic metrics (CPU/MEM/DISK)
+  - Connect to API to fetch real agents
+
+  Phase 2: Enhanced List Features (~10k tokens)
+  - Search box for filtering agents
+  - Dropdown filters (Status, OS)
+  - Grid/List view toggle
+  - Action buttons (Refresh All, Add Agent)
+  - Responsive agent cards with tags
+
+  Phase 3: AgentDetails Overview (~15k tokens)
+  - Create AgentDetails.razor page with routing
+  - Breadcrumb navigation
+  - Agent header with actions
+  - Overview tab: System info, certificate warning, resource metrics
+  - Recent activity list
+
+  Phase 4: Core Detail Tabs (~12k tokens)
+  - Performance tab with charts/metrics
+  - Certificate tab with full cert details
+  - Activity/Command history tab
+
+  Phase 5: Inventory & Services (~12k tokens)
+  - Inventory tab: Installed software, hardware, storage, updates
+  - Services tab: Windows services list with controls
+
+  Phase 6: Polish & Integration (~8k tokens)
+  - Navigation between Agents and Details pages
+  - Auto-refresh/real-time updates
+  - Loading spinners
+  - Error handling & empty states

@@ -104,7 +104,7 @@ public class CertificateService : ICertificateService
                 AgentId = agentId,
                 Thumbprint = thumbprint,
                 CertificateData = certPem,
-                IssuedAt = DateTime.UtcNow,
+                IssuedAt = DateTime.Now,
                 ExpiresAt = notAfter.UtcDateTime,
                 IsRevoked = false
             };
@@ -141,7 +141,7 @@ public class CertificateService : ICertificateService
             return false;
         }
 
-        if (cert.ExpiresAt < DateTime.UtcNow)
+        if (cert.ExpiresAt < DateTime.Now)
         {
             _logger.LogWarning("Certificate {Thumbprint} is expired", thumbprint);
             return false;
@@ -162,7 +162,7 @@ public class CertificateService : ICertificateService
         }
 
         cert.IsRevoked = true;
-        cert.RevokedAt = DateTime.UtcNow;
+        cert.RevokedAt = DateTime.Now;
         cert.RevocationReason = reason;
 
         await _context.SaveChangesAsync();

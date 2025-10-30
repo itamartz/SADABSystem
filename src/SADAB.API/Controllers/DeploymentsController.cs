@@ -75,7 +75,7 @@ public class DeploymentsController : ControllerBase
                 TimeoutMinutes = request.TimeoutMinutes,
                 SuccessExitCodes = request.SuccessExitCodes,
                 Status = DeploymentStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = userName
             };
 
@@ -94,7 +94,7 @@ public class DeploymentsController : ControllerBase
                             Id = Guid.NewGuid(),
                             DeploymentId = deployment.Id,
                             AgentId = agentId,
-                            AddedAt = DateTime.UtcNow
+                            AddedAt = DateTime.Now
                         });
 
                         // Create pending result
@@ -104,7 +104,7 @@ public class DeploymentsController : ControllerBase
                             DeploymentId = deployment.Id,
                             AgentId = agentId,
                             Status = DeploymentStatus.Pending,
-                            StartedAt = DateTime.UtcNow
+                            StartedAt = DateTime.Now
                         });
                     }
                 }

@@ -26,12 +26,14 @@
 *@
 
 @page "/"
+@using Microsoft.Extensions.Logging
 @using Microsoft.Extensions.Options
 @using SADAB.Web.Settings
 @inject IAgentService AgentService
 @inject IDeploymentService DeploymentService
 @inject ICommandService CommandService
 @inject IOptionsMonitor<DashboardSettings> DashboardSettingsMonitor
+@inject ILogger<Index> Logger
 @implements IDisposable
 
 <PageTitle>Dashboard - SADAB</PageTitle>
@@ -350,7 +352,7 @@
         // This allows the refresh interval to be updated without restarting the application
         settingsChangeListener = DashboardSettingsMonitor.OnChange(settings =>
         {
-            Console.WriteLine($"Dashboard settings changed. New refresh interval: {settings.RefreshIntervalMs}ms");
+            Logger.LogInformation("Dashboard settings changed. New refresh interval: {RefreshIntervalMs}ms", settings.RefreshIntervalMs);
             InitializeRefreshTimer();
         });
     }
@@ -372,12 +374,18 @@
         // Setting RefreshIntervalMs to 0 disables auto-refresh
         if (refreshInterval > 0)
         {
-            refreshTimer = new Timer(async _ => await RefreshDashboard(), null, refreshInterval, refreshInterval);
-            Console.WriteLine($"Dashboard auto-refresh enabled with interval: {refreshInterval}ms");
+            refreshTimer = new Timer(_ =>
+            {
+                _ = InvokeAsync(async () => await RefreshDashboard());
+                Logger.LogDebug("Dashboard refresh timer triggered");
+            }, null, refreshInterval, refreshInterval);
+
+
+            Logger.LogInformation("Dashboard auto-refresh enabled with interval: {RefreshIntervalMs}ms", refreshInterval);
         }
         else
         {
-            Console.WriteLine("Dashboard auto-refresh disabled (RefreshIntervalMs = 0)");
+            Logger.LogInformation("Dashboard auto-refresh disabled (RefreshIntervalMs = 0)");
         }
     }
 
@@ -395,20 +403,20 @@
     /// Errors are caught and logged to prevent the entire dashboard from failing
     /// if one service is unavailable.
     /// </remarks>
+
     private async Task LoadData()
     {
         try
         {
             // Load data from all services concurrently for better performance
             agents = await AgentService.GetAllAgentsAsync();
-            agents = agents.Where(a => a.IpAddress != "127.0.0.1").ToList();
             // deployments = await DeploymentService.GetAllDeploymentsAsync();
             // commands = await CommandService.GetRecentCommandsAsync();
         }
         catch (Exception ex)
         {
             // Handle error - future enhancement: display error message in UI
-            Console.WriteLine($"Error loading data: {ex.Message}");
+            Logger.LogError(ex, "Error loading data");
         }
     }
 
@@ -421,34 +429,23 @@
         try
         {
             // Load data from all services
+            Logger.LogInformation("Refreshing dashboard data...");
+
+
+            Logger.LogDebug("Loading agents...");
             agents = await AgentService.GetAllAgentsAsync();
-            agents = agents.Where(a => a.IpAddress != "127.0.0.1").ToList();
+            Logger.LogDebug("Loaded {AgentCount} agents", agents?.Count ?? 0);
+
             // deployments = await DeploymentService.GetAllDeploymentsAsync();
             // commands = await CommandService.GetRecentCommandsAsync();
 
             await InvokeAsync(StateHasChanged);
+            Logger.LogDebug("Dashboard data refreshed");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error refreshing dashboard: {ex.Message}");
+            Logger.LogError(ex, "Error refreshing dashboard");
         }
-    }
-
-    /// <summary>
-    /// Refreshes the agents list from the API.
-    /// Called when user clicks the Refresh button in the agents section.
-    /// Sets agents to null to show loading state, then reloads data.
-    /// </summary>
-    private async Task RefreshAgents()
-    {
-        // Set to null to trigger loading state in UI
-        agents = null;
-
-        // Trigger re-render to show loading message
-        StateHasChanged();
-
-        // Reload agents from API
-        agents = await AgentService.GetAllAgentsAsync();
     }
 
     // ============================================================================

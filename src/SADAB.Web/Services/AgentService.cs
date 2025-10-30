@@ -1,4 +1,5 @@
 using SADAB.Shared.DTOs;
+using SADAB.Web.Pages;
 using System.Net.Http.Json;
 
 namespace SADAB.Web.Services;
@@ -47,8 +48,11 @@ public class AgentService : IAgentService
         if (response.IsSuccessStatusCode)
         {
             // Deserialize JSON response to AgentDto list
-            // Return empty list if deserialization returns null
-            return await response.Content.ReadFromJsonAsync<List<AgentDto>>() ?? new List<AgentDto>();
+            var agents = await response.Content.ReadFromJsonAsync<List<AgentDto>>() ?? new List<AgentDto>();
+            
+
+            // Filter out localhost agent (127.0.0.1) from the list
+            return agents.Where(a => a.IpAddress != "127.0.0.1").ToList();
         }
 
         // Return empty list on failure to allow graceful UI handling

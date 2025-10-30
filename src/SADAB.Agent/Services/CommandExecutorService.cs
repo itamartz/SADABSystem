@@ -36,7 +36,7 @@ public class CommandExecutorService : ICommandExecutorService
 
     public async Task ExecuteCommandAsync(CommandExecutionDto command)
     {
-        var startTime = DateTime.UtcNow;
+        var startTime = DateTime.Now;
 
         try
         {
@@ -89,7 +89,7 @@ public class CommandExecutorService : ICommandExecutorService
                     Status = CommandExecutionStatus.Timeout,
                     RequestedAt = command.RequestedAt,
                     StartedAt = startTime,
-                    CompletedAt = DateTime.UtcNow,
+                    CompletedAt = DateTime.Now,
                     ErrorOutput = _appConfiguration["Messages:CommandExecutionTimedOut"] ?? "Command execution timed out"
                 };
             }
@@ -107,7 +107,7 @@ public class CommandExecutorService : ICommandExecutorService
                     Status = status,
                     RequestedAt = command.RequestedAt,
                     StartedAt = startTime,
-                    CompletedAt = DateTime.UtcNow,
+                    CompletedAt = DateTime.Now,
                     ExitCode = exitCode,
                     Output = outputBuilder.ToString(),
                     ErrorOutput = errorBuilder.Length > 0 ? errorBuilder.ToString() : null
@@ -133,7 +133,7 @@ public class CommandExecutorService : ICommandExecutorService
                 Status = CommandExecutionStatus.Failed,
                 RequestedAt = command.RequestedAt,
                 StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.Now,
                 ErrorOutput = ex.Message
             };
 

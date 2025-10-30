@@ -51,7 +51,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
     public async Task ExecuteDeploymentAsync(DeploymentTaskDto deployment)
     {
         var deploymentPath = Path.Combine(_configuration.WorkingDirectory, _deploymentsSubFolder, deployment.DeploymentId.ToString());
-        var startTime = DateTime.UtcNow;
+        var startTime = DateTime.Now;
 
         try
         {
@@ -111,7 +111,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                         AgentId = _configuration.AgentId!.Value,
                         Status = DeploymentStatus.Failed,
                         StartedAt = startTime,
-                        CompletedAt = DateTime.UtcNow,
+                        CompletedAt = DateTime.Now,
                         ErrorMessage = string.Format(unsupportedMessage, deployment.Type)
                     };
                     break;
@@ -134,7 +134,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 AgentId = _configuration.AgentId!.Value,
                 Status = DeploymentStatus.Failed,
                 StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.Now,
                 ErrorMessage = ex.Message
             };
 
@@ -172,7 +172,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 AgentId = _configuration.AgentId!.Value,
                 Status = DeploymentStatus.Failed,
                 StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.Now,
                 ErrorMessage = _appConfiguration["Messages:NoExecutableSpecified"] ?? "No executable specified"
             };
         }
@@ -210,7 +210,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 AgentId = _configuration.AgentId!.Value,
                 Status = DeploymentStatus.Failed,
                 StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.Now,
                 ErrorMessage = _appConfiguration["Messages:NoPowerShellScriptSpecified"] ?? "No PowerShell script specified"
             };
         }
@@ -243,7 +243,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 AgentId = _configuration.AgentId!.Value,
                 Status = DeploymentStatus.Failed,
                 StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.Now,
                 ErrorMessage = _appConfiguration["Messages:NoBatchScriptSpecified"] ?? "No batch script specified"
             };
         }
@@ -298,7 +298,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 AgentId = _configuration.AgentId!.Value,
                 Status = DeploymentStatus.Completed,
                 StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.Now,
                 ExitCode = 0,
                 Output = string.Format(copiedMessage, targetPath)
             };
@@ -311,7 +311,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 AgentId = _configuration.AgentId!.Value,
                 Status = DeploymentStatus.Failed,
                 StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.Now,
                 ErrorMessage = ex.Message
             };
         }
@@ -354,7 +354,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                     AgentId = _configuration.AgentId!.Value,
                     Status = DeploymentStatus.Failed,
                     StartedAt = startTime,
-                    CompletedAt = DateTime.UtcNow,
+                    CompletedAt = DateTime.Now,
                     ErrorMessage = _appConfiguration["Messages:DeploymentTimedOut"] ?? "Deployment timed out"
                 };
             }
@@ -376,7 +376,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 AgentId = _configuration.AgentId!.Value,
                 Status = status,
                 StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.Now,
                 ExitCode = exitCode,
                 Output = outputBuilder.ToString(),
                 ErrorMessage = errorBuilder.Length > 0 ? errorBuilder.ToString() : null
@@ -390,7 +390,7 @@ public class DeploymentExecutorService : IDeploymentExecutorService
                 AgentId = _configuration.AgentId!.Value,
                 Status = DeploymentStatus.Failed,
                 StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.Now,
                 ErrorMessage = ex.Message,
                 Output = outputBuilder.ToString()
             };

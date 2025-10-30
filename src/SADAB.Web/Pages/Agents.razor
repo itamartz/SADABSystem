@@ -1,0 +1,569 @@
+@*
+    Agents Management Page
+    ======================
+    Comprehensive agents management interface showing all registered agents.
+    Features include:
+    - Statistics dashboard with agent counts by status
+    - Grid view of agent cards with system information
+    - Certificate expiration warnings
+    - Real-time status indicators
+    - Quick actions for each agent
+*@
+
+@page "/agents"
+@using Microsoft.AspNetCore.SignalR.Client
+@using SADAB.Shared.DTOs
+@using SADAB.Shared.Enums
+@inject IAgentService AgentService
+@inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
+@inject ILogger<Agents> Logger
+@implements IDisposable
+
+<PageTitle>Agents - SADAB</PageTitle>
+
+@*
+    Statistics Bar
+    ==============
+    Displays key metrics about registered agents
+*@
+
+@* SignalR Connection Status Indicator (Debug) *@
+<div style="background: @(_isSignalRConnected ? "#28a745" : "#dc3545"); color: white; padding: 5px 10px; text-align: center; font-size: 12px;">
+    SignalR: @(_isSignalRConnected ? "Connected ✓" : "Disconnected ✗") | Last Update: @_lastUpdateTime.ToString("HH:mm:ss")
+</div>
+
+<div class="stats-bar">
+    <div class="stat-item">
+        <div class="stat-icon total">🖥️</div>
+        <div class="stat-content">
+            <div class="stat-label">Total Agents</div>
+            <div class="stat-value">@TotalAgents</div>
+        </div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-icon online">✓</div>
+        <div class="stat-content">
+            <div class="stat-label">Online</div>
+            <div class="stat-value">@OnlineAgents</div>
+        </div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-icon offline">✕</div>
+        <div class="stat-content">
+            <div class="stat-label">Offline</div>
+            <div class="stat-value">@OfflineAgents</div>
+        </div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-icon warning">⚠</div>
+        <div class="stat-content">
+            <div class="stat-label">Warnings</div>
+            <div class="stat-value">@WarningAgents</div>
+        </div>
+    </div>
+</div>
+
+@*
+    Agents Grid Container
+    =====================
+    Main container for displaying agent cards
+*@
+<div class="agents-container">
+    <div class="agents-header">
+        <div class="agents-title">Registered Agents (@TotalAgents)</div>
+    </div>
+
+    @if (agents == null)
+    {
+        @* Loading State *@
+        <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Loading agents...</p>
+        </div>
+    }
+    else if (!agents.Any())
+    {
+        @* Empty State *@
+        <div class="empty-state">
+            <div class="empty-icon">🖥️</div>
+            <h3>No Agents Registered</h3>
+            <p>No agents have been registered yet. Install and configure the SADAB agent on your machines to get started.</p>
+        </div>
+    }
+    else
+    {
+        @* Agents Grid *@
+        <div class="agents-grid">
+            @foreach (var agent in agents)
+            {
+                <div class="agent-card @GetAgentCardClass(agent)">
+                    @* Agent Header *@
+                    <div class="agent-header">
+                        <div>
+                            <div class="agent-name">@agent.MachineName</div>
+                            <div class="agent-id @GetCertificateClass(agent)">
+                                @GetCertificateStatus(agent)
+                            </div>
+                        </div>
+                        <span class="status @GetStatusClass(agent.Status)">@agent.Status</span>
+                    </div>
+
+                    @* Agent Info Grid *@
+                    <div class="agent-info">
+                        <div class="info-item">
+                            <span class="info-label">IP Address</span>
+                            <span class="info-value">@(agent.IpAddress.Split(',')[0] ?? "N/A")</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">OS Version</span>
+                            <span class="info-value">@agent.OperatingSystem</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Registered</span>
+                            <span class="info-value">@GetTimeAgo(agent.RegisteredAt)</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Last Seen</span>
+                            <span class="info-value">@GetTimeAgo(agent.LastHeartbeat)</span>
+                        </div>
+                    </div>
+
+                    @* System Metrics *@
+                    <div class="agent-metrics">
+                        <div class="metric">
+                            <div class="metric-value">@GetMetricDisplay(agent.CpuUsagePercent)</div>
+                            <div class="metric-label">CPU</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">@GetMetricDisplay(agent.MemoryUsagePercent)</div>
+                            <div class="metric-label">MEMORY</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">--</div>
+                            <div class="metric-label">DISK</div>
+                        </div>
+                    </div>
+
+                    @* Agent Actions *@
+                    <div class="agent-actions">
+                        <button class="action-btn" @onclick="() => ViewAgentDetails(agent.Id)">📊 Details</button>
+                        <button class="action-btn">⚙️ Execute</button>
+                        <button class="action-btn">🔧 Configure</button>
+                    </div>
+
+                    @* Heartbeat Status *@
+                    <div class="heartbeat">
+                        <div class="heartbeat-dot @(IsAgentOnline(agent) ? "" : "offline")"></div>
+                        <span>@GetHeartbeatText(agent)</span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Collection of all registered agents retrieved from the API
+    /// </summary>
+    private List<AgentDto>? agents;
+
+    /// <summary>
+    /// SignalR hub connection for real-time agent updates.
+    /// Receives "AgentUpdated" messages from the server.
+    /// </summary>
+    private HubConnection? _hubConnection;
+
+    /// <summary>
+    /// Timer for fallback polling when SignalR is disconnected.
+    /// Configured via DashboardSettings:FallbackRefreshIntervalMs in appsettings.json
+    /// </summary>
+    private Timer? _fallbackTimer;
+
+    /// <summary>
+    /// Tracks whether SignalR is currently connected
+    /// </summary>
+    private bool _isSignalRConnected;
+
+    /// <summary>
+    /// Last time an update was received (for debugging)
+    /// </summary>
+    private DateTime _lastUpdateTime = DateTime.Now;
+
+    /// <summary>
+    /// SignalR connection error message (for debugging)
+    /// </summary>
+    private string? _signalRError;
+
+    // ============================================================================
+    // Computed Properties for Statistics
+    // ============================================================================
+
+    private int TotalAgents => agents?.Count ?? 0;
+    private int OnlineAgents => agents?.Count(a => a.Status == AgentStatus.Online) ?? 0;
+    private int OfflineAgents => agents?.Count(a => a.Status == AgentStatus.Offline || a.Status == AgentStatus.Disconnected) ?? 0;
+    private int WarningAgents => agents?.Count(a => IsCertificateExpiringSoon(a) || a.Status == AgentStatus.Error) ?? 0;
+
+    // ============================================================================
+    // Lifecycle Methods
+    // ============================================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAgentsAsync();
+        await InitializeSignalRAsync();
+        StartFallbackTimer();
+    }
+
+    // ============================================================================
+    // SignalR Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Initializes SignalR connection to receive real-time agent updates.
+    /// Configures automatic reconnection and handles "AgentUpdated" messages.
+    /// Uses API base URL from configuration with /hubs/agents endpoint.
+    /// </summary>
+    private async Task InitializeSignalRAsync()
+    {
+        try
+        {
+            var apiBaseUrl = Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:5001";
+            var hubUrl = $"{apiBaseUrl}/hubs/agents";
+
+            Logger.LogInformation("Attempting to connect to SignalR hub at {HubUrl}", hubUrl);
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(hubUrl, options =>
+                {
+                    // Configure for cross-origin requests
+                    options.AccessTokenProvider = () => Task.FromResult<string?>(null);
+                })
+                .WithAutomaticReconnect() // Automatic reconnection with exponential backoff
+                .ConfigureLogging(logging =>
+                {
+                    // Enable verbose logging for debugging
+                    logging.SetMinimumLevel(LogLevel.Debug);
+                })
+                .Build();
+
+            // Handle incoming agent updates
+            _hubConnection.On<AgentDto>("AgentUpdated", async (updatedAgent) =>
+            {
+                Logger.LogDebug("Received SignalR update for agent {MachineName} (ID: {AgentId})",
+                    updatedAgent.MachineName, updatedAgent.Id);
+                await HandleAgentUpdateAsync(updatedAgent);
+            });
+
+            // Track connection state
+            _hubConnection.Reconnecting += (error) =>
+            {
+                _isSignalRConnected = false;
+                _signalRError = error?.Message;
+                Logger.LogWarning(error, "SignalR connection lost, attempting to reconnect");
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+
+            _hubConnection.Reconnected += (connectionId) =>
+            {
+                _isSignalRConnected = true;
+                _signalRError = null;
+                Logger.LogInformation("SignalR reconnected successfully with connection ID: {ConnectionId}", connectionId);
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+
+            _hubConnection.Closed += (error) =>
+            {
+                _isSignalRConnected = false;
+                _signalRError = error?.Message;
+                if (error != null)
+                {
+                    Logger.LogWarning(error, "SignalR connection closed with error");
+                }
+                else
+                {
+                    Logger.LogInformation("SignalR connection closed");
+                }
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+
+            await _hubConnection.StartAsync();
+            _isSignalRConnected = true;
+            _signalRError = null;
+            Logger.LogInformation("SignalR connected successfully to {HubUrl}", hubUrl);
+        }
+        catch (Exception ex)
+        {
+            // Fallback timer will handle updates if SignalR fails
+            _isSignalRConnected = false;
+            _signalRError = ex.Message;
+            Logger.LogError(ex, "Failed to establish SignalR connection to hub");
+        }
+    }
+
+    /// <summary>
+    /// Handles an agent update received from SignalR.
+    /// Updates the local agent list and triggers UI refresh.
+    /// More efficient than reloading all 5K agents.
+    /// </summary>
+    /// <param name="updatedAgent">The agent data received from the server</param>
+    private async Task HandleAgentUpdateAsync(AgentDto updatedAgent)
+    {
+        if (agents == null) return;
+
+        var existingAgent = agents.FirstOrDefault(a => a.Id == updatedAgent.Id);
+        if (existingAgent != null)
+        {
+            // Update existing agent
+            var index = agents.IndexOf(existingAgent);
+            agents[index] = updatedAgent;
+        }
+        else
+        {
+            // New agent registered
+            agents.Add(updatedAgent);
+        }
+
+        // Update last update time
+        _lastUpdateTime = DateTime.Now;
+
+        // Trigger UI refresh
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // ============================================================================
+    // Fallback Timer Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Starts a fallback timer that polls for agent updates when SignalR is disconnected.
+    /// Interval configured via DashboardSettings:FallbackRefreshIntervalMs (default 60 seconds).
+    /// This ensures updates continue even if SignalR connection fails.
+    /// </summary>
+    private void StartFallbackTimer()
+    {
+        var fallbackIntervalMs = Configuration.GetValue<int>("DashboardSettings:FallbackRefreshIntervalMs", 60000);
+
+        Logger.LogInformation("Starting fallback timer with interval of {IntervalMs}ms ({IntervalSeconds}s)",
+            fallbackIntervalMs, fallbackIntervalMs / 1000);
+
+        _fallbackTimer = new Timer(async _ =>
+        {
+            // Only poll if SignalR is not connected
+            if (!_isSignalRConnected)
+            {
+                Logger.LogDebug("SignalR disconnected, using fallback polling to refresh agent list");
+                await LoadAgentsAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }, null, TimeSpan.FromMilliseconds(fallbackIntervalMs), TimeSpan.FromMilliseconds(fallbackIntervalMs));
+    }
+
+    // ============================================================================
+    // Data Loading Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Loads all agents from the API.
+    /// Called on initialization and by fallback timer when SignalR is disconnected.
+    /// </summary>
+    private async Task LoadAgentsAsync()
+    {
+        try
+        {
+            Logger.LogDebug("Loading agents from API");
+            agents = await AgentService.GetAllAgentsAsync();
+            _lastUpdateTime = DateTime.Now;
+            Logger.LogInformation("Successfully loaded {AgentCount} agents from API", agents?.Count ?? 0);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load agents from API");
+        }
+    }
+
+    // ============================================================================
+    // Helper Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Determines if an agent is currently online based on last heartbeat
+    /// </summary>
+    private bool IsAgentOnline(AgentDto agent)
+    {
+        return agent.Status == AgentStatus.Online &&
+               (DateTime.UtcNow - agent.LastHeartbeat).TotalMinutes < 5;
+    }
+
+    /// <summary>
+    /// Gets the CSS class for agent status badge
+    /// </summary>
+    private string GetStatusClass(AgentStatus status)
+    {
+        return status switch
+        {
+            AgentStatus.Online => "online",
+            AgentStatus.Offline => "offline",
+            AgentStatus.Disconnected => "offline",
+            AgentStatus.Error => "failed",
+            _ => "offline"
+        };
+    }
+
+    /// <summary>
+    /// Gets the CSS class for the agent card based on its state
+    /// </summary>
+    private string GetAgentCardClass(AgentDto agent)
+    {
+        if (agent.Status == AgentStatus.Offline || agent.Status == AgentStatus.Disconnected)
+            return "offline";
+        if (IsCertificateExpiringSoon(agent) || agent.Status == AgentStatus.Error)
+            return "warning";
+        return "";
+    }
+
+    /// <summary>
+    /// Determines if certificate is expiring soon (within 30 days)
+    /// </summary>
+    private bool IsCertificateExpiringSoon(AgentDto agent)
+    {
+        if (agent.CertificateExpiresAt == null)
+            return false;
+
+        var daysUntilExpiry = (agent.CertificateExpiresAt.Value - DateTime.UtcNow).TotalDays;
+        return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
+    }
+
+    /// <summary>
+    /// Determines if certificate has expired
+    /// </summary>
+    private bool IsCertificateExpired(AgentDto agent)
+    {
+        if (agent.CertificateExpiresAt == null)
+            return false;
+
+        return agent.CertificateExpiresAt.Value < DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Gets the CSS class for certificate status display
+    /// </summary>
+    private string GetCertificateClass(AgentDto agent)
+    {
+        if (IsCertificateExpired(agent))
+            return "expired";
+        if (IsCertificateExpiringSoon(agent))
+            return "expiring-soon";
+        return "";
+    }
+
+    /// <summary>
+    /// Gets the certificate status text to display
+    /// </summary>
+    private string GetCertificateStatus(AgentDto agent)
+    {
+        if (agent.CertificateExpiresAt == null)
+            return "📜 No certificate information";
+
+        var daysUntilExpiry = (int)(agent.CertificateExpiresAt.Value - DateTime.UtcNow).TotalDays;
+
+        if (daysUntilExpiry < 0)
+            return $"📜 Certificate EXPIRED {Math.Abs(daysUntilExpiry)} days ago";
+        if (daysUntilExpiry == 0)
+            return "📜 Certificate expires TODAY";
+        if (daysUntilExpiry <= 7)
+            return $"📜 Certificate expires in {daysUntilExpiry} days";
+        if (daysUntilExpiry <= 30)
+            return $"📜 Certificate expires in {daysUntilExpiry} days";
+
+        return $"📜 Certificate expires in {daysUntilExpiry} days";
+    }
+
+    /// <summary>
+    /// Gets heartbeat status text
+    /// </summary>
+    private string GetHeartbeatText(AgentDto agent)
+    {
+        if (!IsAgentOnline(agent))
+        {
+            var timeSinceLastSeen = DateTime.UtcNow - agent.LastHeartbeat;
+            return $"Last seen: {GetTimeAgo(agent.LastHeartbeat)}";
+        }
+
+        var secondsAgo = (int)(DateTime.UtcNow - agent.LastHeartbeat).TotalSeconds;
+        return $"Last heartbeat: {secondsAgo} seconds ago";
+    }
+
+    /// <summary>
+    /// Converts a DateTime to a human-readable "time ago" string
+    /// </summary>
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+
+        if (timeSpan.TotalDays >= 365)
+            return $"{(int)(timeSpan.TotalDays / 365)} year{((int)(timeSpan.TotalDays / 365) == 1 ? "" : "s")} ago";
+        if (timeSpan.TotalDays >= 30)
+            return $"{(int)(timeSpan.TotalDays / 30)} month{((int)(timeSpan.TotalDays / 30) == 1 ? "" : "s")} ago";
+        if (timeSpan.TotalDays >= 1)
+            return $"{(int)timeSpan.TotalDays} day{((int)timeSpan.TotalDays == 1 ? "" : "s")} ago";
+        if (timeSpan.TotalHours >= 1)
+            return $"{(int)timeSpan.TotalHours} hour{((int)timeSpan.TotalHours == 1 ? "" : "s")} ago";
+        if (timeSpan.TotalMinutes >= 1)
+            return $"{(int)timeSpan.TotalMinutes} minute{((int)timeSpan.TotalMinutes == 1 ? "" : "s")} ago";
+
+        return $"{(int)timeSpan.TotalSeconds} second{((int)timeSpan.TotalSeconds == 1 ? "" : "s")} ago";
+    }
+
+    /// <summary>
+    /// Formats metric percentage for display
+    /// </summary>
+    private string GetMetricDisplay(double? percentage)
+    {
+        if (!percentage.HasValue || percentage.Value < 0)
+            return "--";
+
+        return $"{percentage.Value:F1}%";
+    }
+
+    // ============================================================================
+    // Navigation Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Navigates to agent details page
+    /// </summary>
+    private void ViewAgentDetails(Guid agentId)
+    {
+        NavigationManager.NavigateTo($"/agents/{agentId}");
+    }
+
+    // ============================================================================
+    // Cleanup Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Disposes resources when the component is destroyed.
+    /// Closes SignalR connection and stops the fallback timer.
+    /// </summary>
+    public void Dispose()
+    {
+        Logger.LogInformation("Disposing Agents page resources");
+
+        if (_fallbackTimer != null)
+        {
+            _fallbackTimer.Dispose();
+            Logger.LogDebug("Fallback timer disposed");
+        }
+
+        if (_hubConnection != null)
+        {
+            Logger.LogDebug("Disposing SignalR connection");
+            _ = _hubConnection.DisposeAsync();
+        }
+    }
+}

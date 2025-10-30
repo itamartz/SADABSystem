@@ -55,7 +55,7 @@ public class AuthController : ControllerBase
             {
                 UserName = request.Username,
                 Email = request.Email,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
 
             var result = await _userManager.CreateAsync(user, request.Password);
@@ -70,7 +70,7 @@ public class AuthController : ControllerBase
             // Generate JWT token
             var token = _tokenService.GenerateJwtToken(user);
             var jwtExpiration = _configuration.GetValue<int>("JwtSettings:ExpirationHours");
-            var expiresAt = DateTime.UtcNow.AddHours(jwtExpiration);
+            var expiresAt = DateTime.Now.AddHours(jwtExpiration);
 
             return Ok(new AuthResponse
             {
@@ -107,7 +107,7 @@ public class AuthController : ControllerBase
             }
 
             // Update last login
-            user.LastLoginAt = DateTime.UtcNow;
+            user.LastLoginAt = DateTime.Now;
             await _userManager.UpdateAsync(user);
 
             _logger.LogInformation("User {Username} logged in successfully", request.Username);
@@ -115,7 +115,7 @@ public class AuthController : ControllerBase
             // Generate JWT token
             var token = _tokenService.GenerateJwtToken(user);
             var jwtExpiration = _configuration.GetValue<int>("JwtSettings:ExpirationHours");
-            var expiresAt = DateTime.UtcNow.AddHours(jwtExpiration);
+            var expiresAt = DateTime.Now.AddHours(jwtExpiration);
 
             return Ok(new AuthResponse
             {

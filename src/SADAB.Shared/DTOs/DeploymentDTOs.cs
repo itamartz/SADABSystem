@@ -1,4 +1,5 @@
 using SADAB.Shared.Enums;
+using SADAB.Shared.Extensions;
 
 namespace SADAB.Shared.DTOs;
 
@@ -20,13 +21,10 @@ public class CreateDeploymentRequest
     /// </summary>
     public List<int> SuccessExitCodes { get; set; } = new() { 0 };
 
-    public override string ToString()
-    {
-        return $"Name={Name}, Description={Description ?? "null"}, Type={Type}, PackageFolderName={PackageFolderName}, " +
-               $"ExecutablePath={ExecutablePath ?? "null"}, Arguments={Arguments ?? "null"}, " +
-               $"TargetAgentIds={TargetAgentIds?.Count ?? 0} agents, RunAsAdmin={RunAsAdmin}, TimeoutMinutes={TimeoutMinutes}, " +
-               $"SuccessExitCodes=[{string.Join(", ", SuccessExitCodes)}]";
-    }
+    /// <summary>
+    /// Returns a string representation with all properties in Key=Value format using reflection.
+    /// </summary>
+    public override string ToString() => this.ToKeyValueString();
 }
 
 public class DeploymentDto
@@ -43,13 +41,10 @@ public class DeploymentDto
     public int SuccessCount { get; set; }
     public int FailedCount { get; set; }
 
-    public override string ToString()
-    {
-        return $"Id={Id}, Name={Name}, Description={Description ?? "null"}, Type={Type}, " +
-               $"PackageFolderName={PackageFolderName}, Status={Status}, CreatedAt={CreatedAt:yyyy-MM-dd HH:mm:ss}, " +
-               $"CreatedBy={CreatedBy ?? "null"}, TargetAgentCount={TargetAgentCount}, " +
-               $"SuccessCount={SuccessCount}, FailedCount={FailedCount}";
-    }
+    /// <summary>
+    /// Returns a string representation with all properties in Key=Value format using reflection.
+    /// </summary>
+    public override string ToString() => this.ToKeyValueString();
 }
 
 public class DeploymentResultDto
@@ -65,14 +60,11 @@ public class DeploymentResultDto
     public string? Output { get; set; }
     public string? ErrorMessage { get; set; }
 
-    public override string ToString()
-    {
-        return $"Id={Id}, DeploymentId={DeploymentId}, AgentId={AgentId}, AgentName={AgentName ?? "null"}, " +
-               $"Status={Status}, StartedAt={StartedAt:yyyy-MM-dd HH:mm:ss}, " +
-               $"CompletedAt={CompletedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}, ExitCode={ExitCode?.ToString() ?? "null"}, " +
-               $"Output={(Output != null ? $"\"{Output.Substring(0, Math.Min(50, Output.Length))}...\"" : "null")}, " +
-               $"ErrorMessage={ErrorMessage ?? "null"}";
-    }
+    /// <summary>
+    /// Returns a string representation with all properties in Key=Value format using reflection.
+    /// Long output strings are truncated.
+    /// </summary>
+    public override string ToString() => this.ToKeyValueString();
 }
 
 public class DeploymentTaskDto
@@ -92,11 +84,8 @@ public class DeploymentTaskDto
     /// </summary>
     public List<int> SuccessExitCodes { get; set; } = new() { 0 };
 
-    public override string ToString()
-    {
-        return $"DeploymentId={DeploymentId}, Name={Name}, Type={Type}, Files={Files.Count} files, " +
-               $"ExecutablePath={ExecutablePath ?? "null"}, Arguments={Arguments ?? "null"}, " +
-               $"RunAsAdmin={RunAsAdmin}, TimeoutMinutes={TimeoutMinutes}, " +
-               $"SuccessExitCodes=[{string.Join(", ", SuccessExitCodes)}]";
-    }
+    /// <summary>
+    /// Returns a string representation with all properties in Key=Value format using reflection.
+    /// </summary>
+    public override string ToString() => this.ToKeyValueString();
 }
