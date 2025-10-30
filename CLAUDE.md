@@ -283,6 +283,7 @@ When creating a new DTO:
 **IMPORTANT**: Always create a git branch BEFORE starting any code changes in SADAB.
 
 - **Create branch first**: Before making any code modifications, create a new feature branch
+- Ask for descriptive-name and use it in the branch naming
 - Feature branch naming: `claude/<descriptive-name>-<dateTime>`
 - Make all changes in the feature branch
 - Never push directly to main
