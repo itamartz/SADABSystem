@@ -401,7 +401,7 @@
         {
             // Load data from all services concurrently for better performance
             agents = await AgentService.GetAllAgentsAsync();
-            
+
             // deployments = await DeploymentService.GetAllDeploymentsAsync();
             // commands = await CommandService.GetRecentCommandsAsync();
         }
@@ -506,12 +506,12 @@
         var timeAgo = DateTime.Now - lastHeartbeat;
 
         if (timeAgo.TotalSeconds < 60)
-            return $"{(int)timeAgo.TotalSeconds} seconds ago";
+            return $"{(int)timeAgo.TotalSeconds} s";
 
         if (timeAgo.TotalMinutes < 60)
-            return $"{(int)timeAgo.TotalMinutes} minutes ago";
+            return $"{(int)timeAgo.TotalMinutes} m {(int)timeAgo.Seconds} s";
 
-        return $"{(int)timeAgo.TotalHours} hours ago";
+        return $"{(int)timeAgo.TotalHours} h {(int)timeAgo.Minutes} m {(int)timeAgo.Seconds} s";
     }
 
     /// <summary>
@@ -529,7 +529,7 @@
             return $"{(int)timeAgo.TotalSeconds} seconds ago";
 
         if (timeAgo.TotalMinutes < 60)
-            return $"{(int)timeAgo.TotalMinutes} minutes ago";
+            return $"{(int)timeAgo.TotalMinutes} M {(int)timeAgo.TotalSeconds} S";
 
         if (timeAgo.TotalHours < 24)
             return $"{(int)timeAgo.TotalHours} hours ago";
