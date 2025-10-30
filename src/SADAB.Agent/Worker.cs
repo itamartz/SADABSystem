@@ -5,6 +5,7 @@ using SADAB.Agent.Configuration;
 using SADAB.Agent.Services;
 using SADAB.Shared.DTOs;
 using SADAB.Shared.Enums;
+using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Text.Json;
@@ -163,7 +164,7 @@ public class Worker : BackgroundService
 
             var machineId = GetMachineId();
             var machineName = Environment.MachineName;
-            var os = Environment.OSVersion.ToString();
+            var os = GetDetailedOSVersion();
             var ipAddress = GetLocalIPAddress();
 
             var request = new AgentRegistrationRequest
@@ -223,7 +224,7 @@ public class Worker : BackgroundService
             try
             {
                 _logger.LogDebug("about to sending heartbeat to server...");
-                var agentVersion = _appConfiguration["AgentSettings:Version"] ?? "Unknown";
+                
                 var request = new AgentHeartbeatRequest
                 {
                     Status = AgentStatus.Online,
@@ -232,8 +233,10 @@ public class Worker : BackgroundService
                     {
                         ["MachineName"] = Environment.MachineName,
                         ["UserName"] = Environment.UserName,
-                        ["OSVersion"] = Environment.OSVersion.ToString(),
-                        ["AgentVersion"] = agentVersion
+                        ["OSVersion"] = GetDetailedOSVersion(),
+                        ["AgentVersion"] = _appConfiguration["AgentSettings:Version"] ?? "Unknown",
+                        ["CpuUsagePercent"] = GetCpuUsage(),
+                        ["MemoryUsagePercent"] = GetMemoryUsage()
                     }
                 };
 
@@ -520,6 +523,171 @@ public class Worker : BackgroundService
         {
             _logger.LogError(ex, "Error extracting certificate thumbprint");
             return Guid.NewGuid().ToString("N");
+        }
+    }
+
+    /// <summary>
+    /// Gets the current CPU usage percentage for the system.
+    /// Uses PerformanceCounter on Windows for accurate system-wide CPU usage.
+    /// </summary>
+    /// <returns>CPU usage as a percentage (0-100), or -1 if unable to determine</returns>
+    private double GetCpuUsage()
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                using var cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+                // First call returns 0, need a small delay
+                cpuCounter.NextValue();
+                System.Threading.Thread.Sleep(100);
+                var usage = cpuCounter.NextValue();
+                return Math.Round(usage, 2);
+            }
+            else
+            {
+                // For non-Windows systems, return -1 to indicate not available
+                // TODO: Implement Linux/Mac CPU monitoring if needed
+                return -1;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error getting CPU usage");
+            return -1;
+        }
+    }
+
+    /// <summary>
+    /// Gets the current memory usage percentage for the system.
+    /// Calculates based on available physical memory vs total physical memory.
+    /// </summary>
+    /// <returns>Memory usage as a percentage (0-100), or -1 if unable to determine</returns>
+    private double GetMemoryUsage()
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                using var ramCounter = new PerformanceCounter("Memory", "Available MBytes");
+                var availableMemoryMB = ramCounter.NextValue();
+
+                // Get total physical memory
+                var totalMemoryMB = GetTotalPhysicalMemoryMB();
+
+                if (totalMemoryMB > 0)
+                {
+                    var usedMemoryMB = totalMemoryMB - availableMemoryMB;
+                    var usagePercent = (usedMemoryMB / totalMemoryMB) * 100;
+                    return Math.Round(usagePercent, 2);
+                }
+            }
+
+            return -1;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error getting memory usage");
+            return -1;
+        }
+    }
+
+    /// <summary>
+    /// Gets the total physical memory in megabytes.
+    /// </summary>
+    /// <returns>Total physical memory in MB, or 0 if unable to determine</returns>
+    private double GetTotalPhysicalMemoryMB()
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                using var mc = new System.Management.ManagementClass("Win32_ComputerSystem");
+                foreach (System.Management.ManagementObject mo in mc.GetInstances())
+                {
+                    var totalMemoryBytes = Convert.ToDouble(mo["TotalPhysicalMemory"]);
+                    return totalMemoryBytes / (1024 * 1024); // Convert to MB
+                }
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error getting total physical memory");
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets detailed OS version information including Caption and Build Number with UBR.
+    /// Example output: "Windows 11 Pro (22631.4602)"
+    /// </summary>
+    /// <returns>Detailed OS version string, or fallback to Environment.OSVersion on error</returns>
+    private string GetDetailedOSVersion()
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                string? caption = null;
+                string? buildNumber = null;
+                string? ubr = null;
+
+                // Get Caption and BuildNumber from WMI
+                using (var mc = new System.Management.ManagementClass("Win32_OperatingSystem"))
+                {
+                    foreach (System.Management.ManagementObject mo in mc.GetInstances())
+                    {
+                        caption = mo["Caption"]?.ToString();
+                        buildNumber = mo["BuildNumber"]?.ToString();
+                        break;
+                    }
+                }
+
+                // Get UBR from registry
+                try
+                {
+                    using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
+                    if (key != null)
+                    {
+                        ubr = key.GetValue("UBR")?.ToString();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Error reading UBR from registry");
+                }
+
+                // Build the formatted string
+                if (!string.IsNullOrEmpty(caption))
+                {
+                    // Remove "Microsoft " prefix if present
+                    if (caption.StartsWith("Microsoft ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        caption = caption.Substring(10); // Remove "Microsoft "
+                    }
+
+                    if (!string.IsNullOrEmpty(buildNumber))
+                    {
+                        var fullBuild = buildNumber;
+                        if (!string.IsNullOrEmpty(ubr))
+                        {
+                            fullBuild = $"{buildNumber}.{ubr}";
+                        }
+                        return $"{caption} ({fullBuild})";
+                    }
+                    return caption;
+                }
+            }
+
+            // Fallback to default OS version
+            return Environment.OSVersion.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error getting detailed OS version");
+            return Environment.OSVersion.ToString();
         }
     }
 
