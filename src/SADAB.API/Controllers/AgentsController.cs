@@ -143,6 +143,25 @@ public class AgentsController : ControllerBase
                 agent.IpAddress = request.IpAddress;
             }
 
+            // Update OperatingSystem and SystemInfo from request
+            if (request.SystemInfo != null)
+            {
+                // Update OS Version
+                if (request.SystemInfo.ContainsKey("OSVersion"))
+                {
+                    var osVersion = request.SystemInfo["OSVersion"]?.ToString();
+                    if (!string.IsNullOrEmpty(osVersion))
+                    {
+                        agent.OperatingSystem = osVersion;
+                        _logger.LogDebug("Updated agent {AgentId} OS version to {OSVersion}", agentId, osVersion);
+                    }
+                }
+
+                // Store entire SystemInfo in Metadata JSON field
+                agent.Metadata = JsonSerializer.Serialize(request.SystemInfo);
+                _logger.LogDebug("Updated agent {AgentId} metadata with SystemInfo", agentId);
+            }
+
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Agent {agent} heartbeat processed successfully", agent);
