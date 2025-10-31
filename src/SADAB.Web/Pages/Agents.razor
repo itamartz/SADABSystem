@@ -11,6 +11,7 @@
 *@
 
 @page "/agents"
+@using System.Text.Json
 @inject IAgentService AgentService
 @inject NavigationManager NavigationManager
 
@@ -117,18 +118,18 @@
                         </div>
                     </div>
 
-                    @* Placeholder Metrics (will be populated from SystemInfo in future) *@
+                    @* System Metrics *@
                     <div class="agent-metrics">
                         <div class="metric">
-                            <div class="metric-value">--</div>
+                            <div class="metric-value">@GetMetricValue(agent, "CpuUsagePercent")</div>
                             <div class="metric-label">CPU</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-value">--</div>
+                            <div class="metric-value">@GetMetricValue(agent, "MemoryUsagePercent")</div>
                             <div class="metric-label">MEMORY</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-value">--</div>
+                            <div class="metric-value">@GetMetricValue(agent, "DiskUsagePercent")</div>
                             <div class="metric-label">DISK</div>
                         </div>
                     </div>
@@ -140,11 +141,14 @@
                         <button class="action-btn">🔧 Configure</button>
                     </div>
 
-                    @* Heartbeat Status *@
+                    
+                    @* Heartbeat Status 
                     <div class="heartbeat">
                         <div class="heartbeat-dot @(IsAgentOnline(agent) ? "" : "offline")"></div>
                         <span>@GetHeartbeatText(agent)</span>
                     </div>
+                    *@
+
                 </div>
             }
         </div>
@@ -197,7 +201,7 @@
     private bool IsAgentOnline(AgentDto agent)
     {
         return agent.Status == AgentStatus.Online &&
-               (DateTime.UtcNow - agent.LastHeartbeat).TotalMinutes < 5;
+               (DateTime.Now - agent.LastHeartbeat).TotalMinutes < 5;
     }
 
     /// <summary>
@@ -235,7 +239,7 @@
         if (agent.CertificateExpiresAt == null)
             return false;
 
-        var daysUntilExpiry = (agent.CertificateExpiresAt.Value - DateTime.UtcNow).TotalDays;
+        var daysUntilExpiry = (agent.CertificateExpiresAt.Value - DateTime.Now).TotalDays;
         return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
     }
 
@@ -247,7 +251,7 @@
         if (agent.CertificateExpiresAt == null)
             return false;
 
-        return agent.CertificateExpiresAt.Value < DateTime.UtcNow;
+        return agent.CertificateExpiresAt.Value < DateTime.Now;
     }
 
     /// <summary>
@@ -270,7 +274,7 @@
         if (agent.CertificateExpiresAt == null)
             return "📜 No certificate information";
 
-        var daysUntilExpiry = (int)(agent.CertificateExpiresAt.Value - DateTime.UtcNow).TotalDays;
+        var daysUntilExpiry = (int)(agent.CertificateExpiresAt.Value - DateTime.Now).TotalDays;
 
         if (daysUntilExpiry < 0)
             return $"📜 Certificate EXPIRED {Math.Abs(daysUntilExpiry)} days ago";
@@ -291,11 +295,11 @@
     {
         if (!IsAgentOnline(agent))
         {
-            var timeSinceLastSeen = DateTime.UtcNow - agent.LastHeartbeat;
+            var timeSinceLastSeen = DateTime.Now - agent.LastHeartbeat;
             return $"Last seen: {GetTimeAgo(agent.LastHeartbeat)}";
         }
 
-        var secondsAgo = (int)(DateTime.UtcNow - agent.LastHeartbeat).TotalSeconds;
+        var secondsAgo = (int)(DateTime.Now - agent.LastHeartbeat).TotalSeconds;
         return $"Last heartbeat: {secondsAgo} seconds ago";
     }
 
@@ -304,7 +308,7 @@
     /// </summary>
     private string GetTimeAgo(DateTime dateTime)
     {
-        var timeSpan = DateTime.UtcNow - dateTime;
+        var timeSpan = DateTime.Now - dateTime;
 
         if (timeSpan.TotalDays >= 365)
             return $"{(int)(timeSpan.TotalDays / 365)} year{((int)(timeSpan.TotalDays / 365) == 1 ? "" : "s")} ago";
@@ -330,5 +334,52 @@
     private void ViewAgentDetails(Guid agentId)
     {
         NavigationManager.NavigateTo($"/agents/{agentId}");
+    }
+
+    // ============================================================================
+    // Metrics Helper Methods
+    // ============================================================================
+
+    /// <summary>
+    /// Gets a metric value from agent's SystemInfo dictionary and formats it as a percentage
+    /// </summary>
+    /// <param name="agent">The agent DTO containing SystemInfo</param>
+    /// <param name="metricKey">The key for the metric (e.g., "CpuUsagePercent")</param>
+    /// <returns>Formatted metric string with percentage, or "--" if unavailable</returns>
+    private string GetMetricValue(AgentDto agent, string metricKey)
+    {
+        if (agent.SystemInfo == null || !agent.SystemInfo.ContainsKey(metricKey))
+            return "--";
+
+        try
+        {
+            var value = agent.SystemInfo[metricKey];
+
+            // Handle JsonElement (from deserialization)
+            if (value is JsonElement jsonElement)
+            {
+                if (jsonElement.ValueKind == JsonValueKind.Number)
+                {
+                    var numValue = jsonElement.GetDouble();
+                    // Check for -1 which indicates metric unavailable
+                    if (numValue < 0)
+                        return "--";
+                    return $"{numValue:F1}%";
+                }
+            }
+            // Handle direct double value
+            else if (value is double doubleValue)
+            {
+                if (doubleValue < 0)
+                    return "--";
+                return $"{doubleValue:F1}%";
+            }
+
+            return value?.ToString() ?? "--";
+        }
+        catch
+        {
+            return "--";
+        }
     }
 }

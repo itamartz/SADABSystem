@@ -159,7 +159,7 @@ public class AgentsController : ControllerBase
 
                 // Store entire SystemInfo in Metadata JSON field
                 agent.Metadata = JsonSerializer.Serialize(request.SystemInfo);
-                _logger.LogDebug("Updated agent {AgentId} metadata with SystemInfo", agentId);
+                _logger.LogDebug("Updated agent {AgentId} Metadata with SystemInfo metrics", agentId);
             }
 
             await _context.SaveChangesAsync();
@@ -251,21 +251,25 @@ public class AgentsController : ControllerBase
         {
             var agents = await _context.Agents
                 .OrderByDescending(a => a.LastHeartbeat)
-                .Select(a => new AgentDto
-                {
-                    Id = a.Id,
-                    MachineName = a.MachineName,
-                    MachineId = a.MachineId,
-                    OperatingSystem = a.OperatingSystem,
-                    IpAddress = a.IpAddress,
-                    Status = a.Status,
-                    LastHeartbeat = a.LastHeartbeat,
-                    RegisteredAt = a.RegisteredAt,
-                    CertificateExpiresAt = a.CertificateExpiresAt
-                })
                 .ToListAsync();
 
-            return Ok(agents);
+            var agentDtos = agents.Select(a => new AgentDto
+            {
+                Id = a.Id,
+                MachineName = a.MachineName,
+                MachineId = a.MachineId,
+                OperatingSystem = a.OperatingSystem,
+                IpAddress = a.IpAddress,
+                Status = a.Status,
+                LastHeartbeat = a.LastHeartbeat,
+                RegisteredAt = a.RegisteredAt,
+                CertificateExpiresAt = a.CertificateExpiresAt,
+                SystemInfo = a.Metadata != null
+                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(a.Metadata)
+                    : null
+            }).ToList();
+
+            return Ok(agentDtos);
         }
         catch (Exception ex)
         {
@@ -296,7 +300,10 @@ public class AgentsController : ControllerBase
                 Status = agent.Status,
                 LastHeartbeat = agent.LastHeartbeat,
                 RegisteredAt = agent.RegisteredAt,
-                CertificateExpiresAt = agent.CertificateExpiresAt
+                CertificateExpiresAt = agent.CertificateExpiresAt,
+                SystemInfo = agent.Metadata != null
+                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(agent.Metadata)
+                    : null
             });
         }
         catch (Exception ex)
