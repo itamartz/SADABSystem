@@ -14,7 +14,7 @@ public class Agent
     public DateTime RegisteredAt { get; set; }
     public string? CurrentCertificateThumbprint { get; set; }
     public DateTime? CertificateExpiresAt { get; set; }
-    public string? Metadata { get; set; } // JSON serialized
+    public string? Metadata { get; set; } // JSON serialized (stores SystemInfo from heartbeat)
 
     // Navigation properties
     public ICollection<AgentCertificate> Certificates { get; set; } = new List<AgentCertificate>();

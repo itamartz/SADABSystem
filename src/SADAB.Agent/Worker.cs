@@ -236,7 +236,8 @@ public class Worker : BackgroundService
                         ["OSVersion"] = GetDetailedOSVersion(),
                         ["AgentVersion"] = _appConfiguration["AgentSettings:Version"] ?? "Unknown",
                         ["CpuUsagePercent"] = GetCpuUsage(),
-                        ["MemoryUsagePercent"] = GetMemoryUsage()
+                        ["MemoryUsagePercent"] = GetMemoryUsage(),
+                        ["DiskUsagePercent"] = GetDiskUsage()
                     }
                 };
 
@@ -616,6 +617,36 @@ public class Worker : BackgroundService
         {
             _logger.LogWarning(ex, "Error getting total physical memory");
             return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets the current disk usage percentage for the system drive.
+    /// </summary>
+    /// <returns>Disk usage as a percentage (0-100), or -1 if unable to determine</returns>
+    private double GetDiskUsage()
+    {
+        try
+        {
+            var systemDrive = Path.GetPathRoot(Environment.SystemDirectory);
+            if (systemDrive != null)
+            {
+                var driveInfo = new DriveInfo(systemDrive);
+                if (driveInfo.IsReady)
+                {
+                    var totalSpace = driveInfo.TotalSize;
+                    var usedSpace = totalSpace - driveInfo.AvailableFreeSpace;
+                    var usagePercent = ((double)usedSpace / totalSpace) * 100;
+                    return Math.Round(usagePercent, 2);
+                }
+            }
+
+            return -1;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error getting disk usage");
+            return -1;
         }
     }
 

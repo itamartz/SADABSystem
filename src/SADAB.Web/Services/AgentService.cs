@@ -50,9 +50,16 @@ public class AgentService : IAgentService
             // Deserialize JSON response to AgentDto list
             var agents = await response.Content.ReadFromJsonAsync<List<AgentDto>>() ?? new List<AgentDto>();
             
-
+            
             // Filter out localhost agent (127.0.0.1) from the list
-            return agents.Where(a => a.IpAddress != "127.0.0.1").ToList();
+            return agents
+                .Where(a => a.IpAddress != "127.0.0.1")
+                .Select(a =>
+                {
+                    if ((DateTime.Now - a.LastHeartbeat).TotalMinutes > 1)
+                        a.Status = SADAB.Shared.Enums.AgentStatus.Offline;
+                    return a;
+                }).ToList();
         }
 
         // Return empty list on failure to allow graceful UI handling
