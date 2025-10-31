@@ -12,8 +12,12 @@
 
 @page "/agents"
 @using System.Text.Json
+@using Microsoft.Extensions.Options
+@using SADAB.Web.Settings
 @inject IAgentService AgentService
 @inject NavigationManager NavigationManager
+@inject IOptionsMonitor<DashboardSettings> DashboardSettingsMonitor
+@implements IDisposable
 
 <PageTitle>Agents - SADAB</PageTitle>
 
@@ -161,6 +165,16 @@
     /// </summary>
     private List<AgentDto>? agents;
 
+    /// <summary>
+    /// Timer for automatic page refresh. Triggers data reload at regular intervals.
+    /// </summary>
+    private Timer? refreshTimer;
+
+    /// <summary>
+    /// Listener for configuration changes. Allows updating refresh interval without restarting.
+    /// </summary>
+    private IDisposable? settingsChangeListener;
+
     // ============================================================================
     // Computed Properties for Statistics
     // ============================================================================
@@ -174,9 +188,50 @@
     // Lifecycle Methods
     // ============================================================================
 
+    /// <summary>
+    /// Blazor lifecycle method called when the component is initialized.
+    /// Loads all agents from API and sets up automatic refresh timer.
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
         await LoadAgentsAsync();
+
+        // Set up automatic refresh timer with configured interval
+        InitializeRefreshTimer();
+
+        // Set up listener for configuration changes
+        // This allows the refresh interval to be updated without restarting the application
+        settingsChangeListener = DashboardSettingsMonitor.OnChange(settings =>
+        {
+            Console.WriteLine($"Dashboard settings changed. New refresh interval: {settings.RefreshIntervalMs}ms");
+            InitializeRefreshTimer();
+        });
+    }
+
+    /// <summary>
+    /// Initializes or reinitializes the refresh timer with the current configuration settings.
+    /// Disposes of the old timer if it exists before creating a new one.
+    /// </summary>
+    private void InitializeRefreshTimer()
+    {
+        // Get current settings
+        var settings = DashboardSettingsMonitor.CurrentValue;
+        var refreshInterval = settings.RefreshIntervalMs;
+
+        // Dispose of old timer if it exists
+        refreshTimer?.Dispose();
+
+        // Only create timer if refresh interval is greater than 0
+        // Setting RefreshIntervalMs to 0 disables auto-refresh
+        if (refreshInterval > 0)
+        {
+            refreshTimer = new Timer(async _ => await RefreshAgentsData(), null, refreshInterval, refreshInterval);
+            Console.WriteLine($"Agents page auto-refresh enabled with interval: {refreshInterval}ms");
+        }
+        else
+        {
+            Console.WriteLine("Agents page auto-refresh disabled (RefreshIntervalMs = 0)");
+        }
     }
 
     // ============================================================================
@@ -188,7 +243,34 @@
     /// </summary>
     private async Task LoadAgentsAsync()
     {
-        agents = await AgentService.GetAllAgentsAsync();
+        try
+        {
+            agents = await AgentService.GetAllAgentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading agents: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Refreshes all agents data automatically via timer.
+    /// Invokes StateHasChanged to update the UI on the correct thread.
+    /// </summary>
+    private async Task RefreshAgentsData()
+    {
+        try
+        {
+            // Load agents from API
+            agents = await AgentService.GetAllAgentsAsync();
+
+            // Update UI on correct thread
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing agents: {ex.Message}");
+        }
     }
 
     // ============================================================================
@@ -348,7 +430,8 @@
     /// <returns>Formatted metric string with percentage, or "--" if unavailable</returns>
     private string GetMetricValue(AgentDto agent, string metricKey)
     {
-        if (agent.SystemInfo == null || !agent.SystemInfo.ContainsKey(metricKey))
+        // Check if agent is offline - if so, don't show metrics
+        if (agent.SystemInfo == null || !agent.SystemInfo.ContainsKey(metricKey) || !IsAgentOnline(agent))
             return "--";
 
         try
@@ -381,5 +464,19 @@
         {
             return "--";
         }
+    }
+
+    // ============================================================================
+    // Disposal
+    // ============================================================================
+
+    /// <summary>
+    /// Disposes of resources when the component is destroyed.
+    /// Ensures the refresh timer and settings change listener are properly cleaned up to prevent memory leaks.
+    /// </summary>
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+        settingsChangeListener?.Dispose();
     }
 }
